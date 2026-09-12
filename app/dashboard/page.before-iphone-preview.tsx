@@ -1,0 +1,5588 @@
+"use client";
+
+import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import {
+  closestCenter,
+  DndContext,
+  DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  horizontalListSortingStrategy,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { supabase } from "../supabase";
+import ProfilePreview from "../components/ProfilePreview";
+import SocialIcons, {
+  SocialLink,
+  SocialPlatform,
+} from "../components/SocialIcons";
+
+type Profile = {
+  id: string;
+  username: string;
+  display_name: string;
+  bio: string;
+  avatar_url: string | null;
+  bg_color: string | null;
+  bg_image_url: string | null;
+  button_style: string;
+  social_position: "below_profile" | "footer" | null;
+};
+
+type BioLink = {
+  id: string;
+  profile_id: string;
+  title: string;
+  url: string;
+  position: number;
+  starts_at: string | null;
+  ends_at: string | null;
+  ab_group: string | null;
+  is_variant: boolean;
+  variant_of: string | null;
+  icon_url: string | null;
+  icon_size: number;
+  icon_position_x: "left" | "center" | "right";
+  icon_position_y: "top" | "center" | "bottom";
+  display_type: "button" | "image";
+image_url: string | null;
+image_height: number | null;
+background_color: string | null;
+badge_text: string | null;
+text_color: string | null;
+hover_effect: string | null;
+};
+
+type SocialLinkRow = SocialLink & {
+  id: string;
+  profile_id: string;
+  platform: SocialPlatform;
+  url: string;
+  position: number;
+};
+
+type Product = {
+  id: string;
+  profile_id: string;
+  title: string;
+  description: string;
+  price_cents: number;
+  currency: string;
+  file_url: string | null;
+  external_url: string | null;
+  cover_image_url: string | null;
+};
+
+type Order = {
+  id: string;
+  product_id: string;
+  profile_id: string;
+  buyer_email: string;
+  buyer_name: string | null;
+  amount_cents: number;
+  currency: string;
+};
+
+type LinkClick = {
+  link_id: string;
+  clicked_at: string;
+};
+
+type SocialClick = {
+  platform: string;
+  clicked_at: string;
+};
+
+type ProfileView = {
+  profile_id: string;
+  viewed_at: string;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  utm_content: string | null;
+};
+
+type TrafficRow = {
+  label: string;
+  visits: number;
+  percentage: number;
+};
+
+type LinkStatus = {
+  label: string;
+  detail: string;
+  className: string;
+};
+
+type SortableLinkItemProps = {
+  link: BioLink;
+  variants: BioLink[];
+  isEditing: boolean;
+  editingTitle: string;
+  editingUrl: string;
+  editingIconUrl: string;
+editingIconSize: number;
+editingIconPositionX: "left" | "center" | "right";
+editingIconPositionY: "top" | "center" | "bottom";
+editingImageHeight: number;
+editingBackgroundColor: string;
+editingBadgeText: string;
+editingTextColor: string;
+editingHoverEffect: string;
+editingScheduleEnabled: boolean;
+  editingStartsAt: string;
+  editingEndsAt: string;
+  savingEdit: boolean;
+deleting: boolean;
+uploadingIcon: boolean;
+onIconFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  onEdit: (link: BioLink) => void;
+  onTitleChange: (value: string) => void;
+  onUrlChange: (value: string) => void;
+  onIconUrlChange: (value: string) => void;
+onIconSizeChange: (value: number) => void;
+onIconPositionXChange: (value: "left" | "center" | "right") => void;
+onIconPositionYChange: (value: "top" | "center" | "bottom") => void;
+onImageHeightChange: (value: number) => void;
+onBackgroundColorChange: (value: string) => void;
+onBadgeTextChange: (value: string) => void;
+onTextColorChange: (value: string) => void;
+onHoverEffectChange: (value: string) => void;
+onScheduleEnabledChange: (enabled: boolean) => void;
+  onStartsAtChange: (value: string) => void;
+  onEndsAtChange: (value: string) => void;
+  onQuickSchedule: (
+    preset: "hour" | "tonight" | "tomorrow" | "week",
+    target: "new" | "edit"
+  ) => void;
+  onSave: (linkId: string) => void;
+  onCancel: () => void;
+  onDelete: (linkId: string) => void;
+  onAddVariant: (link: BioLink) => void;
+};
+
+type AddVariantModalProps = {
+  originalLink: BioLink;
+  isOpen: boolean;
+  saving: boolean;
+  variantTitle: string;
+  variantUrl: string;
+  message: string;
+  onTitleChange: (value: string) => void;
+  onUrlChange: (value: string) => void;
+  onSave: () => void;
+  onClose: () => void;
+};
+
+type AbGroupStats = {
+  ab_group: string;
+  links: BioLink[];
+  stats: { link: BioLink; clicks: number }[];
+  totalClicksInGroup: number;
+  winner: { link: BioLink; clicks: number } | null;
+};
+
+type ProductForm = {
+  title: string;
+  description: string;
+  priceCents: string;
+  currency: string;
+  fileUrl: string;
+  externalUrl: string;
+  coverImageUrl: string;
+};
+
+function toDateTimeLocalValue(date: Date) {
+  const offset = date.getTimezoneOffset();
+  const localDate = new Date(date.getTime() - offset * 60 * 1000);
+
+  return localDate.toISOString().slice(0, 16);
+}
+
+function fromIsoToDateTimeLocal(value: string | null) {
+  if (!value) {
+    return "";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return toDateTimeLocalValue(date);
+}
+
+function getTimeUntil(targetDate: Date) {
+  const difference = targetDate.getTime() - Date.now();
+  const absoluteDifference = Math.abs(difference);
+
+  const minutes = Math.round(absoluteDifference / (1000 * 60));
+  const hours = Math.round(absoluteDifference / (1000 * 60 * 60));
+  const days = Math.round(absoluteDifference / (1000 * 60 * 60 * 24));
+
+  if (minutes < 60) {
+    return `${Math.max(1, minutes)} min`;
+  }
+
+  if (hours < 24) {
+    return `${hours} ${hours === 1 ? "ora" : "ore"}`;
+  }
+
+  return `${days} ${days === 1 ? "giorno" : "giorni"}`;
+}
+
+function getLinkStatus(link: BioLink): LinkStatus {
+  const now = new Date();
+
+  if (link.starts_at) {
+    const startsAt = new Date(link.starts_at);
+
+    if (startsAt > now) {
+      return {
+        label: "Programmato",
+        detail: `Tra ${getTimeUntil(startsAt)}`,
+        className: "border-amber-400/25 bg-amber-400/10 text-amber-300",
+      };
+    }
+  }
+
+  if (link.ends_at) {
+    const endsAt = new Date(link.ends_at);
+
+    if (endsAt <= now) {
+      return {
+        label: "Scaduto",
+        detail: "Non visibile",
+        className: "border-red-400/25 bg-red-400/10 text-red-300",
+      };
+    }
+
+    return {
+      label: "Live ora",
+      detail: `Scade tra ${getTimeUntil(endsAt)}`,
+      className: "border-[#00d084]/25 bg-[#00d084]/10 text-[#00d084]",
+    };
+  }
+
+  return {
+    label: "Live ora",
+    detail: "Sempre visibile",
+    className: "border-[#00d084]/25 bg-[#00d084]/10 text-[#00d084]",
+  };
+}
+
+function isLinkActive(link: BioLink) {
+  const status = getLinkStatus(link);
+
+  return status.label === "Live ora";
+}
+
+function SortableLinkItem({
+  link,
+  variants,
+  isEditing,
+  editingTitle,
+  editingUrl,
+  editingIconUrl,
+editingIconSize,
+editingIconPositionX,
+editingIconPositionY,
+editingImageHeight,
+editingBackgroundColor,
+editingBadgeText,
+editingTextColor,
+editingHoverEffect,
+editingScheduleEnabled,
+  editingStartsAt,
+  editingEndsAt,
+  savingEdit,
+  deleting,
+  uploadingIcon,
+  onIconFileChange,
+  onEdit,
+  onTitleChange,
+  onUrlChange,
+  onIconUrlChange,
+onIconSizeChange,
+onIconPositionXChange,
+onIconPositionYChange,
+onImageHeightChange,
+onBackgroundColorChange,
+onBadgeTextChange,
+onTextColorChange,
+onHoverEffectChange,
+onScheduleEnabledChange,
+  onStartsAtChange,
+  onEndsAtChange,
+  onQuickSchedule,
+  onSave,
+  onCancel,
+  onDelete,
+  onAddVariant,
+}: SortableLinkItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: link.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  const status = getLinkStatus(link);
+  const hasVariants = variants.length > 0;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`rounded-2xl border border-white/10 bg-[#0c0d12] p-4 ${
+        isDragging ? "z-10 opacity-50 shadow-2xl" : ""
+      }`}
+    >
+      {isEditing ? (
+        <div className="space-y-4">
+          <input
+            type="text"
+            value={editingTitle}
+            onChange={(event) => onTitleChange(event.target.value)}
+            maxLength={80}
+            placeholder="Titolo del link"
+            className="w-full rounded-xl border border-white/20 bg-[#17181e] px-4 py-3 text-white outline-none placeholder:text-white/30 focus:border-[#00d084]"
+          />
+
+          <input
+            type="url"
+            value={editingUrl}
+            onChange={(event) => onUrlChange(event.target.value)}
+            placeholder="https://..."
+            className="w-full rounded-xl border border-white/20 bg-[#17181e] px-4 py-3 text-white outline-none placeholder:text-white/30 focus:border-[#00d084]"
+          />
+
+          <div className="rounded-2xl border border-white/10 bg-[#17181e] p-4">
+  <div className="flex items-start gap-4">
+    <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-white/15 bg-[#0c0d12]">
+      {editingIconUrl ? (
+        <img
+          src={editingIconUrl}
+          alt="Anteprima icona link"
+          className="max-h-full max-w-full object-contain"
+          style={{
+            width: `${editingIconSize}px`,
+            height: `${editingIconSize}px`,
+            objectPosition: `${editingIconPositionX} ${editingIconPositionY}`,
+          }}
+        />
+      ) : (
+        <span className="text-xl text-white/35">+</span>
+      )}
+    </div>
+
+    <div className="min-w-0 flex-1">
+      <p className="text-sm font-bold text-white">Icona del link</p>
+
+      <p className="mt-1 text-xs text-white/45">
+        JPG, PNG o WEBP · massimo 1 MB
+      </p>
+
+      <input
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        onChange={onIconFileChange}
+        disabled={uploadingIcon}
+        className="mt-3 block w-full cursor-pointer text-sm text-white/65 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:font-bold file:text-white file:transition hover:file:bg-[#00d084] hover:file:text-[#07100d] disabled:cursor-not-allowed"
+      />
+    </div>
+  </div>
+
+  {editingIconUrl && (
+    <div className="mt-5 border-t border-white/10 pt-5">
+      <div className="flex items-center justify-between gap-4">
+        <label className="text-sm font-bold text-white/80">
+          Dimensione icona
+        </label>
+
+        <span className="rounded-lg bg-white/10 px-2 py-1 text-xs font-bold text-[#00d084]">
+          {editingIconSize}px
+        </span>
+      </div>
+
+      <input
+        type="range"
+        min="16"
+        max="250"
+        step="1"
+        value={editingIconSize}
+        onChange={(event) => onIconSizeChange(Number(event.target.value))}
+        className="mt-3 w-full cursor-pointer accent-[#00d084]"
+      />
+
+      <div className="mt-5">
+        <p className="text-sm font-bold text-white/80">
+          Posizione orizzontale
+        </p>
+
+        <div className="mt-2 grid grid-cols-3 gap-2">
+          {(["left", "center", "right"] as const).map((position) => (
+            <button
+              key={position}
+              type="button"
+              onClick={() => onIconPositionXChange(position)}
+              className={`rounded-lg px-3 py-2 text-xs font-bold transition ${
+                editingIconPositionX === position
+                  ? "bg-[#00d084] text-[#07100d]"
+                  : "border border-white/15 text-white/65 hover:border-[#00d084] hover:text-[#00d084]"
+              }`}
+            >
+              {position === "left"
+                ? "Sinistra"
+                : position === "center"
+                  ? "Centro"
+                  : "Destra"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/*
+<div className="mt-5">
+  <p className="text-sm font-bold text-white/80">
+    Posizione verticale
+  </p>
+
+  <div className="mt-2 grid grid-cols-3 gap-2">
+    {(["top", "center", "bottom"] as const).map((position) => (
+      <button
+        key={position}
+        type="button"
+        onClick={() => onIconPositionYChange(position)}
+        className={`rounded-lg px-3 py-2 text-xs font-bold transition ${
+          editingIconPositionY === position
+            ? "bg-[#00d084] text-[#07100d]"
+            : "border border-white/15 text-white/65 hover:border-[#00d084] hover:text-[#00d084]"
+        }`}
+      >
+        {position === "top"
+          ? "Alto"
+          : position === "center"
+            ? "Centro"
+            : "Basso"}
+      </button>
+    ))}
+  </div>
+</div>
+*/}
+    </div>
+  )}
+</div>
+
+<div className="rounded-2xl border border-white/10 bg-[#17181e] p-4">
+  <div className="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <p className="text-sm font-bold text-white">Sfondo del link</p>
+      <p className="mt-1 text-xs text-white/45">
+        Lascia vuoto per usare lo stile globale della pagina.
+      </p>
+    </div>
+
+    {editingBackgroundColor && (
+      <button
+        type="button"
+        onClick={() => onBackgroundColorChange("")}
+        className="rounded-lg border border-white/15 px-3 py-2 text-xs font-bold text-white/65 transition hover:border-red-400 hover:text-red-300"
+      >
+        Ripristina
+      </button>
+    )}
+  </div>
+
+  <input
+    type="text"
+    value={editingBackgroundColor}
+    onChange={(event) => onBackgroundColorChange(event.target.value)}
+    placeholder="#00d084 oppure linear-gradient(135deg, #7c3aed, #ec4899)"
+    className="mt-4 w-full rounded-xl border border-white/20 bg-[#0c0d12] px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-[#00d084]"
+  />
+
+  <div className="mt-3 flex flex-wrap items-center gap-3">
+    <input
+      type="color"
+      value={
+        editingBackgroundColor?.startsWith("#") &&
+        !editingBackgroundColor.includes("(")
+          ? editingBackgroundColor
+          : "#00d084"
+      }
+      onChange={(event) => onBackgroundColorChange(event.target.value)}
+      className="h-10 w-14 cursor-pointer rounded-lg border border-white/15 bg-[#0c0d12] p-0"
+    />
+
+    <span className="text-xs text-white/45">
+      Scegli un colore oppure scrivi un gradiente CSS.
+    </span>
+  </div>
+
+  <div
+    className="mt-4 rounded-xl border border-white/10 px-4 py-3 text-center text-sm font-black text-[#07100d]"
+    style={{
+      background: editingBackgroundColor || "#00d084",
+    }}
+  >
+    Anteprima del link
+  </div>
+</div>
+
+<div className="rounded-2xl border border-white/10 bg-[#17181e] p-4">
+  <div className="flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <p className="text-sm font-bold text-white">Badge in evidenza</p>
+      <p className="mt-1 text-xs text-white/45">
+        Un dettaglio premium per attirare l&apos;attenzione sul link.
+      </p>
+    </div>
+
+    {editingBadgeText && (
+      <button
+        type="button"
+        onClick={() => onBadgeTextChange("")}
+        className="rounded-lg border border-white/15 px-3 py-2 text-xs font-bold text-white/65 transition hover:border-red-400 hover:text-red-300"
+      >
+        Rimuovi
+      </button>
+    )}
+  </div>
+
+  <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+    {[
+      { label: "✦ Nuovo", value: "NUOVO" },
+      { label: "🔥 Top", value: "TOP" },
+      { label: "↘ Offerta", value: "OFFERTA" },
+      { label: "✓ Gratis", value: "GRATIS" },
+    ].map((preset) => (
+      <button
+        key={preset.value}
+        type="button"
+        onClick={() => onBadgeTextChange(preset.value)}
+        className={`rounded-xl border px-3 py-2.5 text-xs font-black tracking-wide transition ${
+          editingBadgeText === preset.value
+            ? "border-[#00d084]/70 bg-[#00d084]/15 text-[#5cf0bd] shadow-[0_0_22px_rgba(0,208,132,0.16)]"
+            : "border-white/10 bg-[#0c0d12] text-white/55 hover:border-white/30 hover:text-white"
+        }`}
+      >
+        {preset.label}
+      </button>
+    ))}
+  </div>
+
+  <div className="mt-4">
+    <label className="text-xs font-bold text-white/75">
+      Testo personalizzato
+    </label>
+
+    <div className="mt-2 flex items-center gap-3">
+      <input
+        type="text"
+        value={editingBadgeText}
+        onChange={(event) => onBadgeTextChange(event.target.value.slice(0, 24))}
+        placeholder="Es. LIMITED DROP"
+        maxLength={24}
+        className="min-w-0 flex-1 rounded-xl border border-white/15 bg-[#0c0d12] px-4 py-3 text-sm font-bold tracking-wide text-white outline-none placeholder:text-white/25 focus:border-[#00d084]"
+      />
+
+      <span className="shrink-0 text-xs font-bold text-white/35">
+        {editingBadgeText.length}/24
+      </span>
+    </div>
+  </div>
+
+  {editingBadgeText && (
+    <div className="mt-4 flex items-center justify-center">
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-gradient-to-r from-[#00d084]/25 via-[#8b5cf6]/25 to-[#ec4899]/25 px-3 py-1.5 text-[11px] font-black tracking-[0.14em] text-white shadow-[0_8px_28px_rgba(0,208,132,0.16)] backdrop-blur">
+        <span className="h-1.5 w-1.5 rounded-full bg-[#5cf0bd] shadow-[0_0_10px_#00d084]" />
+        {editingBadgeText}
+      </span>
+    </div>
+  )}
+</div>
+
+<div className="rounded-2xl border border-white/10 bg-[#17181e] p-4">
+  <div className="flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <p className="text-sm font-bold text-white">Colore del testo</p>
+      <p className="mt-1 text-xs text-white/45">
+        Scegli un colore che rimanga leggibile sullo sfondo del link.
+      </p>
+    </div>
+
+    {editingTextColor && (
+      <button
+        type="button"
+        onClick={() => onTextColorChange("")}
+        className="rounded-lg border border-white/15 px-3 py-2 text-xs font-bold text-white/65 transition hover:border-red-400 hover:text-red-300"
+      >
+        Ripristina
+      </button>
+    )}
+  </div>
+
+  <div className="mt-4 grid grid-cols-4 gap-2 sm:grid-cols-6">
+    {[
+      { label: "Bianco", value: "#ffffff" },
+      { label: "Nero", value: "#07100d" },
+      { label: "Smeraldo", value: "#00d084" },
+      { label: "Oro", value: "#facc15" },
+      { label: "Rosa", value: "#f9a8d4" },
+      { label: "Viola", value: "#c4b5fd" },
+    ].map((preset) => (
+      <button
+        key={preset.value}
+        type="button"
+        onClick={() => onTextColorChange(preset.value)}
+        title={preset.label}
+        className={`flex h-10 items-center justify-center rounded-xl border transition ${
+          editingTextColor.toLowerCase() === preset.value
+            ? "border-[#00d084] ring-2 ring-[#00d084]/25"
+            : "border-white/10 hover:border-white/35"
+        }`}
+        style={{ backgroundColor: preset.value }}
+      >
+        <span
+          className="text-[10px] font-black"
+          style={{
+            color: preset.value === "#07100d" ? "#ffffff" : "#07100d",
+          }}
+        >
+          A
+        </span>
+      </button>
+    ))}
+  </div>
+
+  <div className="mt-4 flex items-center gap-3">
+    <input
+      type="color"
+      value={
+        editingTextColor?.startsWith("#") && editingTextColor.length === 7
+          ? editingTextColor
+          : "#ffffff"
+      }
+      onChange={(event) => onTextColorChange(event.target.value)}
+      className="h-11 w-14 cursor-pointer rounded-xl border border-white/15 bg-[#0c0d12] p-0"
+    />
+
+    <input
+      type="text"
+      value={editingTextColor}
+      onChange={(event) => onTextColorChange(event.target.value)}
+      placeholder="#ffffff"
+      className="min-w-0 flex-1 rounded-xl border border-white/15 bg-[#0c0d12] px-4 py-3 text-sm font-bold text-white outline-none placeholder:text-white/25 focus:border-[#00d084]"
+    />
+  </div>
+
+  <div
+    className="mt-4 rounded-xl border border-white/10 bg-[#0c0d12] px-4 py-3 text-center text-sm font-black"
+    style={{
+      color: editingTextColor || "#ffffff",
+    }}
+  >
+    Il tuo testo qui
+  </div>
+</div>
+
+<div className="rounded-2xl border border-white/10 bg-[#17181e] p-4">
+  <div className="flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <p className="text-sm font-bold text-white">Effetto hover</p>
+      <p className="mt-1 text-xs text-white/45">
+        Scegli come deve reagire il link quando il cursore ci passa sopra.
+      </p>
+    </div>
+
+    {editingHoverEffect && editingHoverEffect !== "none" && (
+      <button
+        type="button"
+        onClick={() => onHoverEffectChange("none")}
+        className="rounded-lg border border-white/15 px-3 py-2 text-xs font-bold text-white/65 transition hover:border-red-400 hover:text-red-300"
+      >
+        Ripristina
+      </button>
+    )}
+  </div>
+
+  <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+    {[
+      { value: "none", label: "Nessuno", desc: "Statico" },
+      { value: "lift", label: "Lift", desc: "Si solleva" },
+      { value: "glow", label: "Glow", desc: "Bagliore" },
+      { value: "shine", label: "Shine", desc: "Riflesso" },
+      { value: "pulse", label: "Pulse", desc: "Pulsante" },
+    ].map((opt) => (
+      <button
+        key={opt.value}
+        type="button"
+        onClick={() => onHoverEffectChange(opt.value)}
+        className={`flex flex-col items-center justify-center gap-1 rounded-xl border p-3 text-center transition ${
+          editingHoverEffect === opt.value
+            ? "border-[#00d084] bg-[#00d084]/10"
+            : "border-white/10 hover:border-white/35"
+        }`}
+      >
+        <span className="text-sm font-bold text-white">{opt.label}</span>
+        <span className="text-[10px] text-white/50">{opt.desc}</span>
+      </button>
+    ))}
+  </div>
+
+</div>
+
+{link.display_type === "image" && (
+  <div className="rounded-2xl border border-white/10 bg-[#17181e] p-4">
+    <div className="flex items-center justify-between gap-4">
+      <div>
+        <p className="text-sm font-bold text-white">Altezza immagine</p>
+        <p className="mt-1 text-xs text-white/45">
+          Regola l’altezza del banner immagine.
+        </p>
+      </div>
+
+      <span className="rounded-lg bg-[#00d084]/10 px-3 py-2 text-sm font-black text-[#00d084]">
+        {editingImageHeight}px
+      </span>
+    </div>
+
+    <input
+      type="range"
+      min="120"
+      max="520"
+      step="10"
+      value={editingImageHeight}
+      onChange={(event) => onImageHeightChange(Number(event.target.value))}
+      className="mt-5 w-full cursor-pointer accent-[#00d084]"
+    />
+
+    <div className="mt-2 flex justify-between text-[11px] text-white/40">
+      <span>Compatta</span>
+      <span>Grande</span>
+    </div>
+  </div>
+)}
+
+          <div className="rounded-2xl border border-white/10 bg-[#17181e] p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="font-bold text-white">Programmazione</p>
+                <p className="mt-1 text-sm text-white/45">
+                  Attiva o nascondi automaticamente il link.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => onScheduleEnabledChange(!editingScheduleEnabled)}
+                className={`rounded-full px-4 py-2 text-sm font-bold transition ${
+                  editingScheduleEnabled
+                    ? "bg-[#00d084] text-[#07100d]"
+                    : "bg-white/10 text-white/70 hover:bg-white/15"
+                }`}
+              >
+                {editingScheduleEnabled ? "Programmato" : "Sempre attivo"}
+              </button>
+            </div>
+
+            {editingScheduleEnabled && (
+              <div className="mt-5 space-y-4 border-t border-white/10 pt-5">
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => onQuickSchedule("hour", "edit")}
+                    className="rounded-lg border border-white/15 px-3 py-2 text-sm font-bold text-white/70 transition hover:border-[#00d084] hover:text-[#00d084]"
+                  >
+                    +1 ora
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onQuickSchedule("tonight", "edit")}
+                    className="rounded-lg border border-white/15 px-3 py-2 text-sm font-bold text-white/70 transition hover:border-[#00d084] hover:text-[#00d084]"
+                  >
+                    Stasera
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onQuickSchedule("tomorrow", "edit")}
+                    className="rounded-lg border border-white/15 px-3 py-2 text-sm font-bold text-white/70 transition hover:border-[#00d084] hover:text-[#00d084]"
+                  >
+                    Domani
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onQuickSchedule("week", "edit")}
+                    className="rounded-lg border border-white/15 px-3 py-2 text-sm font-bold text-white/70 transition hover:border-[#00d084] hover:text-[#00d084]"
+                  >
+                    7 giorni
+                  </button>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="text-sm font-bold text-white/75">
+                    Pubblica da
+                    <input
+                      type="datetime-local"
+                      value={editingStartsAt}
+                      onChange={(event) => onStartsAtChange(event.target.value)}
+                      className="mt-2 w-full rounded-xl border border-white/20 bg-[#0c0d12] px-3 py-3 text-white outline-none focus:border-[#00d084]"
+                    />
+                  </label>
+
+                  <label className="text-sm font-bold text-white/75">
+                    Nascondi dopo
+                    <input
+                      type="datetime-local"
+                      value={editingEndsAt}
+                      onChange={(event) => onEndsAtChange(event.target.value)}
+                      className="mt-2 w-full rounded-xl border border-white/20 bg-[#0c0d12] px-3 py-3 text-white outline-none focus:border-[#00d084]"
+                    />
+                  </label>
+                </div>
+
+                <p className="text-xs text-white/45">
+                  Lascia â€œPubblica daâ€ vuoto per renderlo visibile subito.
+                  Lascia â€œNascondi dopoâ€ vuoto per non impostare una scadenza.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => onSave(link.id)}
+              disabled={savingEdit || uploadingIcon}
+              className="rounded-xl bg-[#00d084] px-4 py-3 text-sm font-black text-[#07100d] transition hover:bg-[#19e49b] disabled:opacity-60"
+            >
+              {savingEdit ? "Salvataggio..." : "Salva modifiche"}
+            </button>
+
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={savingEdit}
+              className="rounded-xl border border-white/15 px-4 py-3 text-sm font-bold text-white/70 transition hover:border-white/30"
+            >
+              Annulla
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            {...attributes}
+            {...listeners}
+            aria-label={`Trascina ${link.title} per cambiare ordine`}
+            className="flex h-10 w-10 shrink-0 cursor-grab items-center justify-center rounded-lg border border-white/15 text-xl font-black text-white/55 transition hover:border-[#00d084] hover:text-[#00d084] active:cursor-grabbing"
+          >
+            â ¿
+          </button>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="truncate font-bold text-white">{link.title}</p>
+
+              <span
+                className={`rounded-full border px-2.5 py-1 text-xs font-bold ${status.className}`}
+              >
+                {status.label}
+              </span>
+
+              {hasVariants && (
+                <span className="rounded-full border border-[#9d7bff]/30 bg-[#9d7bff]/15 px-2.5 py-1 text-xs font-bold text-[#d3b8ff]">
+                  A/B test
+                </span>
+              )}
+            </div>
+
+            <p className="mt-1 truncate text-sm text-white/45">{link.url}</p>
+
+            <p className="mt-2 text-xs text-white/45">{status.detail}</p>
+
+            {hasVariants && (
+              <p className="mt-2 text-xs text-[#9d7bff]/80">
+                {variants.length} variante{variants.length > 1 ? "i" : ""} attiva
+                {variants.length > 1 ? "i" : ""}
+              </p>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onEdit(link)}
+              className="rounded-lg border border-white/15 px-3 py-2 text-sm font-bold text-white/75 transition hover:border-[#00d084] hover:text-[#00d084]"
+            >
+              Modifica
+            </button>
+
+            {!hasVariants ? (
+              <button
+                type="button"
+                onClick={() => onAddVariant(link)}
+                className="rounded-lg border border-[#9d7bff]/40 px-3 py-2 text-sm font-bold text-[#d3b8ff] transition hover:bg-[#9d7bff] hover:text-[#0c0d12]"
+              >
+                + Variante
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onAddVariant(link)}
+                className="rounded-lg border border-[#9d7bff]/40 px-3 py-2 text-sm font-bold text-[#d3b8ff] transition hover:bg-[#9d7bff] hover:text-[#0c0d12]"
+              >
+                Gestisci
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => onDelete(link.id)}
+              disabled={deleting}
+              className="rounded-lg border border-red-400/30 px-3 py-2 text-sm font-bold text-red-300 transition hover:bg-red-400 hover:text-[#0c0d12] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {deleting ? "..." : "Elimina"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AddVariantModal({
+  originalLink,
+  isOpen,
+  saving,
+  variantTitle,
+  variantUrl,
+  message,
+  onTitleChange,
+  onUrlChange,
+  onSave,
+  onClose,
+}: AddVariantModalProps) {
+  if (!isOpen) {
+    return null;
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+      <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#17181e] p-6 sm:p-8">
+        <h3 className="text-2xl font-black text-white">
+          Aggiungi variante A/B
+        </h3>
+
+        <p className="mt-2 text-white/55">
+          Crea una seconda versione di questo link per testare quale titolo o
+          URL performa meglio.
+        </p>
+
+        <div className="mt-2 rounded-xl border border-white/10 bg-[#0c0d12] p-4">
+          <p className="text-sm font-bold text-white/70">Link originale</p>
+          <p className="mt-1 truncate text-sm text-white/45">
+            {originalLink.title}
+          </p>
+          <p className="truncate text-xs text-white/40">{originalLink.url}</p>
+        </div>
+
+        <div className="mt-6 space-y-4">
+          <label className="block text-sm font-bold text-white/90">
+            Titolo della variante
+            <input
+              type="text"
+              value={variantTitle}
+              onChange={(event) => onTitleChange(event.target.value)}
+              placeholder="Es. Iscriviti alla newsletter"
+              maxLength={80}
+              className="mt-2 w-full rounded-xl border border-white/20 bg-[#0c0d12] px-4 py-3 text-white outline-none placeholder:text-white/30 focus:border-[#9d7bff]"
+            />
+          </label>
+
+          <label className="block text-sm font-bold text-white/90">
+            URL della variante
+            <input
+              type="url"
+              value={variantUrl}
+              onChange={(event) => onUrlChange(event.target.value)}
+              placeholder="https://..."
+              className="mt-2 w-full rounded-xl border border-white/20 bg-[#0c0d12] px-4 py-3 text-white outline-none placeholder:text-white/30 focus:border-[#9d7bff]"
+            />
+          </label>
+        </div>
+
+        {message && (
+          <p className="mt-4 text-center text-sm text-white/70">{message}</p>
+        )}
+
+        <div className="mt-6 flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={saving || !variantTitle.trim() || !variantUrl.trim()}
+            className="rounded-xl bg-[#9d7bff] px-5 py-3 text-sm font-black text-[#0c0d12] transition hover:bg-[#b696ff] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {saving ? "Creazione..." : "Crea variante"}
+          </button>
+
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="rounded-xl border border-white/15 px-5 py-3 text-sm font-bold text-white/70 transition hover:border-white/30 disabled:opacity-50"
+          >
+            Annulla
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type ConfirmMakeWinnerModalProps = {
+  isOpen: boolean;
+  winnerLink: BioLink;
+  otherVariants: BioLink[];
+  saving: boolean;
+  message: string;
+  onConfirm: () => void;
+  onClose: () => void;
+};
+
+function ConfirmMakeWinnerModal({
+  isOpen,
+  winnerLink,
+  otherVariants,
+  saving,
+  message,
+  onConfirm,
+  onClose,
+}: ConfirmMakeWinnerModalProps) {
+  if (!isOpen) {
+    return null;
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+      <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#17181e] p-6 sm:p-8">
+        <h3 className="text-2xl font-black text-white">
+          Rendi definitiva questa variante
+        </h3>
+
+        <p className="mt-2 text-white/55">
+          Confermi di voler tenere solo questa variante ed eliminare le altre?
+        </p>
+
+        <div className="mt-4 rounded-xl border border-white/10 bg-[#0c0d12] p-4">
+          <p className="text-sm font-bold text-white/70">Variante vincente</p>
+          <p className="mt-1 truncate text-sm text-white/45">
+            {winnerLink.title}
+          </p>
+          <p className="truncate text-xs text-white/40">{winnerLink.url}</p>
+
+          <div className="mt-4 border-t border-white/10 pt-4">
+            <p className="text-xs font-bold text-white/50">
+              Verranno eliminate {otherVariants.length} variante
+              {otherVariants.length > 1 ? "i" : ""}:
+            </p>
+
+            <ul className="mt-2 space-y-1">
+              {otherVariants.map((v) => (
+                <li key={v.id} className="truncate text-xs text-white/40">
+                  â€¢ {v.title}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        {message && (
+          <p className="mt-4 text-center text-sm text-white/70">{message}</p>
+        )}
+
+        <div className="mt-6 flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={saving}
+            className="rounded-xl bg-[#9d7bff] px-5 py-3 text-sm font-black text-[#0c0d12] transition hover:bg-[#b696ff] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {saving ? "Elaborazione..." : "Conferma e rendi definitiva"}
+          </button>
+
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="rounded-xl border border-white/15 px-5 py-3 text-sm font-bold text-white/70 transition hover:border-white/30 disabled:opacity-50"
+          >
+            Annulla
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type ProductModalProps = {
+  isOpen: boolean;
+  product: Product | null;
+  saving: boolean;
+  form: ProductForm;
+  message: string;
+  onFormChange: (form: ProductForm) => void;
+  onSave: () => void;
+  onClose: () => void;
+};
+
+function ProductModal({
+  isOpen,
+  product,
+  saving,
+  form,
+  message,
+  onFormChange,
+  onSave,
+  onClose,
+}: ProductModalProps) {
+  if (!isOpen) {
+    return null;
+  }
+
+  function updateField<K extends keyof ProductForm>(
+    key: K,
+    value: ProductForm[K]
+  ) {
+    onFormChange({ ...form, [key]: value });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+      <div className="w-full max-w-2xl rounded-3xl border border-white/10 bg-[#17181e] p-6 sm:p-8">
+        <h3 className="text-2xl font-black text-white">
+          {product ? "Modifica prodotto" : "Nuovo prodotto"}
+        </h3>
+
+        <p className="mt-2 text-white/55">
+          {product
+            ? "Modifica le informazioni del tuo prodotto digitale."
+            : "Crea un nuovo prodotto digitale da vendere sulla tua pagina."}
+        </p>
+
+        <div className="mt-6 space-y-4">
+          <label className="block text-sm font-bold text-white/90">
+            Titolo
+            <input
+              type="text"
+              value={form.title}
+              onChange={(e) => updateField("title", e.target.value)}
+              placeholder="Es. Preset Lightroom"
+              maxLength={80}
+              className="mt-2 w-full rounded-xl border border-white/20 bg-[#0c0d12] px-4 py-3 text-white outline-none placeholder:text-white/30 focus:border-[#00d084]"
+            />
+          </label>
+
+          <label className="block text-sm font-bold text-white/90">
+            Descrizione
+            <textarea
+              value={form.description}
+              onChange={(e) => updateField("description", e.target.value)}
+              placeholder="Descrivi il tuo prodotto..."
+              maxLength={500}
+              rows={4}
+              className="mt-2 w-full resize-none rounded-xl border border-white/20 bg-[#0c0d12] px-4 py-3 text-white outline-none placeholder:text-white/30 focus:border-[#00d084]"
+            />
+
+            <span className="mt-2 block text-right text-xs text-white/45">
+              {form.description.length}/500
+            </span>
+          </label>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <label className="block text-sm font-bold text-white/90">
+              Prezzo (â‚¬)
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.priceCents}
+                onChange={(e) => updateField("priceCents", e.target.value)}
+                placeholder="19.90"
+                className="mt-2 w-full rounded-xl border border-white/20 bg-[#0c0d12] px-4 py-3 text-white outline-none placeholder:text-white/30 focus:border-[#00d084]"
+              />
+            </label>
+
+            <label className="block text-sm font-bold text-white/90">
+              Valuta
+              <select
+                value={form.currency}
+                onChange={(e) => updateField("currency", e.target.value)}
+                className="mt-2 w-full rounded-xl border border-white/20 bg-[#0c0d12] px-4 py-3 text-white outline-none focus:border-[#00d084]"
+              >
+                <option value="EUR">EUR (â‚¬)</option>
+                <option value="USD">USD ($)</option>
+                <option value="GBP">GBP (Â£)</option>
+              </select>
+            </label>
+          </div>
+
+          <label className="block text-sm font-bold text-white/90">
+            Cover immagine URL
+            <input
+              type="url"
+              value={form.coverImageUrl}
+              onChange={(e) => updateField("coverImageUrl", e.target.value)}
+              placeholder="https://..."
+              className="mt-2 w-full rounded-xl border border-white/20 bg-[#0c0d12] px-4 py-3 text-white outline-none placeholder:text-white/30 focus:border-[#00d084]"
+            />
+          </label>
+
+          <div className="rounded-2xl border border-white/10 bg-[#0c0d12] p-4">
+            <p className="font-bold text-white">File o link esterno</p>
+            <p className="mt-1 text-sm text-white/45">
+              Carica il file del prodotto oppure inserisci un link esterno
+              (Gumroad, Stripe Payment Link, ecc.).
+            </p>
+
+            <div className="mt-4 space-y-4">
+              <label className="block text-sm font-bold text-white/75">
+                URL file (opzionale)
+                <input
+                  type="url"
+                  value={form.fileUrl}
+                  onChange={(e) => updateField("fileUrl", e.target.value)}
+                  placeholder="https://..."
+                  className="mt-2 w-full rounded-xl border border-white/20 bg-[#17181e] px-4 py-3 text-white outline-none placeholder:text-white/30 focus:border-[#00d084]"
+                />
+              </label>
+
+              <label className="block text-sm font-bold text-white/75">
+                Link esterno (opzionale)
+                <input
+                  type="url"
+                  value={form.externalUrl}
+                  onChange={(e) => updateField("externalUrl", e.target.value)}
+                  placeholder="https://gumroad.com/..."
+                  className="mt-2 w-full rounded-xl border border-white/20 bg-[#17181e] px-4 py-3 text-white outline-none placeholder:text-white/30 focus:border-[#00d084]"
+                />
+              </label>
+            </div>
+          </div>
+        </div>
+
+        {message && (
+          <p className="mt-4 text-center text-sm text-white/70">{message}</p>
+        )}
+
+        <div className="mt-6 flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={
+              saving ||
+              !form.title.trim() ||
+              !form.priceCents ||
+              Number(form.priceCents) < 0
+            }
+            className="rounded-xl bg-[#00d084] px-5 py-3 text-sm font-black text-[#07100d] transition hover:bg-[#19e49b] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {saving ? "Salvataggio..." : "Salva prodotto"}
+          </button>
+
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="rounded-xl border border-white/15 px-5 py-3 text-sm font-bold text-white/70 transition hover:border-white/30 disabled:opacity-50"
+          >
+            Annulla
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type SortableSocialItemProps = {
+  socialLink: SocialLinkRow;
+};
+
+function SortableSocialItem({
+  socialLink,
+}: SortableSocialItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: socialLink.id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  const platformLabel =
+    socialLink.platform.charAt(0).toUpperCase() +
+    socialLink.platform.slice(1);
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`flex items-center gap-3 rounded-xl border border-white/10 bg-[#0c0d12] p-3 transition ${
+        isDragging ? "z-20 opacity-50 shadow-2xl" : ""
+      }`}
+    >
+      <button
+        type="button"
+        {...attributes}
+        {...listeners}
+        aria-label={`Trascina ${platformLabel} per cambiare ordine`}
+        className="flex h-10 w-10 shrink-0 cursor-grab items-center justify-center rounded-lg border border-white/15 text-xl font-black text-white/55 transition hover:border-[#00d084] hover:text-[#00d084] active:cursor-grabbing"
+      >
+        ⠿
+      </button>
+
+      <div className="min-w-0 flex-1">
+        <p className="font-bold text-white">{platformLabel}</p>
+
+        <p className="mt-1 truncate text-sm text-white/45">
+          {socialLink.url}
+        </p>
+      </div>
+
+      <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-bold text-white/45">
+        #{socialLink.position + 1}
+      </span>
+    </div>
+  );
+}
+
+type SortableSocialPreviewIconProps = {
+  socialLink: SocialLinkRow;
+};
+
+function SortableSocialPreviewIcon({
+  socialLink,
+}: SortableSocialPreviewIconProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: socialLink.id,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 20 : undefined,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      onClickCapture={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      }}
+      className={`cursor-grab touch-none select-none transition active:cursor-grabbing ${
+        isDragging ? "scale-110 opacity-70" : ""
+      }`}
+      title="Trascina per cambiare ordine"
+    >
+      <SocialIcons
+        links={[socialLink]}
+        className="justify-center"
+      />
+    </div>
+  );
+}
+
+export default function DashboardPage() {
+  const router = useRouter();
+
+  const [userId, setUserId] = useState("");
+  const [email, setEmail] = useState("");
+
+  const [username, setUsername] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [bio, setBio] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
+
+  const saveSocialLinks = async (profileId: string, links: SocialLink[]) => {
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser();
+
+  console.log("DEBUG social:", {
+    profileId,
+    authUserId: user?.id,
+    userError,
+    links,
+  });
+
+  if (!user) {
+    throw new Error("Nessun utente autenticato: effettua di nuovo il login.");
+  }
+
+  if (profileId !== user.id) {
+    throw new Error(
+      `ID profilo non corrisponde all'utente autenticato. Profilo: ${profileId}; utente: ${user.id}`
+    );
+  }
+
+  const { error: deleteError } = await supabase
+    .from("social_links")
+    .delete()
+    .eq("profile_id", user.id);
+
+  if (deleteError) {
+    console.error("Errore eliminazione social:", {
+      message: deleteError.message,
+      details: deleteError.details,
+      hint: deleteError.hint,
+      code: deleteError.code,
+    });
+
+    throw new Error(
+      `Errore cancellazione social: ${deleteError.message} ${
+        deleteError.details ?? ""
+      }`
+    );
+  }
+
+  const linksToSave = links
+    .filter((link) => link.url.trim() !== "")
+    .map((link, index) => ({
+      profile_id: user.id,
+      platform: link.platform,
+      url: link.url.trim(),
+      position: index,
+    }));
+
+  console.log("DEBUG link pronti per Supabase:", linksToSave);
+
+  if (linksToSave.length === 0) {
+    return;
+  }
+
+  const { error: insertError } = await supabase
+    .from("social_links")
+    .insert(linksToSave);
+
+  if (insertError) {
+    console.error("Errore inserimento social:", {
+      message: insertError.message,
+      details: insertError.details,
+      hint: insertError.hint,
+      code: insertError.code,
+    });
+
+    throw new Error(
+      `Errore inserimento social: ${insertError.message} ${
+        insertError.details ?? ""
+      }`
+    );
+  }
+};
+
+  const [bgColor, setBgColor] = useState("");
+  const [backgroundMode, setBackgroundMode] = useState<
+  "color" | "gradient" | "image"
+>("color");
+
+const [gradientStart, setGradientStart] = useState("#2c135f");
+const [gradientEnd, setGradientEnd] = useState("#0b766a");
+const [gradientAngle, setGradientAngle] = useState("145deg");
+  const [bgImageUrl, setBgImageUrl] = useState("");
+  const [buttonStyle, setButtonStyle] = useState("solid");
+  const [previewMode, setPreviewMode] = useState<"mobile" | "desktop">("mobile");
+
+  const [links, setLinks] = useState<BioLink[]>([]);
+  const [socialLinks, setSocialLinks] = useState<SocialLinkRow[]>([]);
+const [socialPosition, setSocialPosition] = useState<
+  "below_profile" | "footer"
+>("footer");
+const [savingSocials, setSavingSocials] = useState(false);
+const [socialEditorOpen, setSocialEditorOpen] = useState(false);
+const [activeSection, setActiveSection] = useState<
+  "links" | "appearance" | "social" | "analytics" | "store"
+>("links");
+  const [linkTitle, setLinkTitle] = useState("");
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkIconUrl, setLinkIconUrl] = useState("");
+  const [newLinkIconFile, setNewLinkIconFile] = useState<File | null>(null);
+  const [newLinkDisplayType, setNewLinkDisplayType] = useState<"button" | "image">("button");
+const [newLinkImageFile, setNewLinkImageFile] = useState<File | null>(null);
+const [newLinkImagePreview, setNewLinkImagePreview] = useState("");
+  const [linkScheduleEnabled, setLinkScheduleEnabled] = useState(false);
+  const [linkStartsAt, setLinkStartsAt] = useState("");
+  const [linkEndsAt, setLinkEndsAt] = useState("");
+
+  const [products, setProducts] = useState<Product[]>([]);
+  const [productModalOpen, setProductModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [productForm, setProductForm] = useState<ProductForm>({
+    title: "",
+    description: "",
+    priceCents: "",
+    currency: "EUR",
+    fileUrl: "",
+    externalUrl: "",
+    coverImageUrl: "",
+  });
+  const [savingProduct, setSavingProduct] = useState(false);
+  const [productMessage, setProductMessage] = useState("");
+
+  const [ordersByProduct, setOrdersByProduct] = useState<
+    Record<string, Order[]>
+  >({});
+
+  const [totalClicks, setTotalClicks] = useState(0);
+  const [todayClicks, setTodayClicks] = useState(0);
+  const [weekClicks, setWeekClicks] = useState(0);
+
+  const [totalSocialClicks, setTotalSocialClicks] = useState(0);
+  const [todaySocialClicks, setTodaySocialClicks] = useState(0);
+  const [weekSocialClicks, setWeekSocialClicks] = useState(0);
+  const [socialClicksByPlatform, setSocialClicksByPlatform] = useState<
+  Record<string, number>
+  >({});
+
+  const [totalViews, setTotalViews] = useState(0);
+  const [todayViews, setTodayViews] = useState(0);
+  const [weekViews, setWeekViews] = useState(0);
+
+  const [clicksByLink, setClicksByLink] = useState<Record<string, number>>(
+    {}
+  );
+  const [trafficSources, setTrafficSources] = useState<TrafficRow[]>([]);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+
+  const [editingLinkId, setEditingLinkId] = useState("");
+  const [editingTitle, setEditingTitle] = useState("");
+  const [editingUrl, setEditingUrl] = useState("");
+  const [editingIconUrl, setEditingIconUrl] = useState("");
+  const [uploadingLinkIcon, setUploadingLinkIcon] = useState(false);
+  const [editingIconSize, setEditingIconSize] = useState(24);
+const [editingIconPositionX, setEditingIconPositionX] = useState<
+  "left" | "center" | "right"
+>("left");
+const [editingIconPositionY, setEditingIconPositionY] = useState<
+  "top" | "center" | "bottom"
+>("center");
+  const [editingBackgroundColor, setEditingBackgroundColor] = useState("");
+  const [editingImageHeight, setEditingImageHeight] = useState(220);
+  const [editingBadgeText, setEditingBadgeText] = useState("");
+  const [editingTextColor, setEditingTextColor] = useState("");
+  const [editingHoverEffect, setEditingHoverEffect] = useState("none");
+  const [profileImageWidth, setProfileImageWidth] = useState<number | "">(120);
+  const [profileImageHeight, setProfileImageHeight] = useState<number | "">(120);
+  const [editingScheduleEnabled, setEditingScheduleEnabled] = useState(false);
+  const [editingStartsAt, setEditingStartsAt] = useState("");
+  const [editingEndsAt, setEditingEndsAt] = useState("");
+
+  const [addingVariantLinkId, setAddingVariantLinkId] = useState("");
+  const [variantTitle, setVariantTitle] = useState("");
+  const [variantUrl, setVariantUrl] = useState("");
+  const [savingVariant, setSavingVariant] = useState(false);
+  const [variantMessage, setVariantMessage] = useState("");
+
+  const [confirmWinnerGroupId, setConfirmWinnerGroupId] = useState("");
+  const [confirmWinnerLink, setConfirmWinnerLink] = useState<BioLink | null>(
+    null
+  );
+  const [confirmOtherVariants, setConfirmOtherVariants] = useState<BioLink[]>(
+    []
+  );
+  const [savingWinner, setSavingWinner] = useState(false);
+  const [winnerMessage, setWinnerMessage] = useState("");
+
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingBg, setUploadingBg] = useState(false);
+  const [savingLink, setSavingLink] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [reordering, setReordering] = useState(false);
+  const [deletingLinkId, setDeletingLinkId] = useState("");
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  useEffect(() => {
+  async function loadDashboard() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+
+    setUserId(user.id);
+    setEmail(user.email ?? "");
+
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select(
+        "id, username, display_name, bio, avatar_url, bg_color, bg_image_url, button_style, social_position"
+      )
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profileError) {
+      setMessage(
+        `Errore nel caricamento del profilo: ${profileError.message}`
+      );
+    }
+
+    if (profile) {
+      const savedProfile = profile as Profile;
+
+      setSocialPosition(
+        (savedProfile as Profile & {
+          social_position?: "below_profile" | "footer";
+        }).social_position === "below_profile"
+          ? "below_profile"
+          : "footer"
+      );
+
+      setUsername(savedProfile.username);
+      setDisplayName(savedProfile.display_name);
+      setBio(savedProfile.bio ?? "");
+      setAvatarUrl(savedProfile.avatar_url ?? "");
+      setBgColor(savedProfile.bg_color ?? "");
+      setBgImageUrl(savedProfile.bg_image_url ?? "");
+      setButtonStyle(savedProfile.button_style ?? "solid");
+
+      const [savedLinks, savedProducts, savedSocials] = await Promise.all([
+        loadLinks(user.id),
+        loadProducts(user.id),
+        loadSocialLinks(user.id),
+      ]);
+
+      setSocialLinks(savedSocials);
+
+      await loadAnalytics(user.id, savedLinks);
+      await loadOrders(user.id, savedProducts);
+    }
+
+    setLoading(false);
+  }
+
+  loadDashboard();
+}, [router]);
+
+  async function loadLinks(profileId: string) {
+    const { data, error } = await supabase
+      .from("links")
+      .select(
+  "id, profile_id, title, url, position, starts_at, ends_at, ab_group, is_variant, variant_of, icon_url, icon_size, icon_position_x, icon_position_y, display_type, image_url, image_height, background_color, badge_text, text_color, hover_effect "
+
+
+)
+      .eq("profile_id", profileId)
+      .order("position", { ascending: true });
+
+    if (error) {
+      setMessage(`Errore nel caricamento dei link: ${error.message}`);
+      return [] as BioLink[];
+    }
+
+    const loadedLinks = (data ?? []) as BioLink[];
+    setLinks(loadedLinks);
+
+    return loadedLinks;
+  }
+
+  async function loadSocialLinks(profileId: string) {
+  const { data, error } = await supabase
+    .from("social_links")
+    .select("id, profile_id, platform, url, position")
+    .eq("profile_id", profileId)
+    .order("position", { ascending: true });
+
+  if (error) {
+    setMessage(`Errore nel caricamento dei social: ${error.message}`);
+    return [] as SocialLinkRow[];
+  }
+
+  return (data ?? []) as SocialLinkRow[];
+}
+
+  async function loadProducts(profileId: string) {
+    const { data, error } = await supabase
+      .from("products")
+      .select(
+        "id, profile_id, title, description, price_cents, currency, file_url, external_url, cover_image_url"
+      )
+      .eq("profile_id", profileId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      setMessage(`Errore nel caricamento dei prodotti: ${error.message}`);
+      return [] as Product[];
+    }
+
+    const loadedProducts = (data ?? []) as Product[];
+    setProducts(loadedProducts);
+
+    return loadedProducts;
+  }
+
+  async function loadOrders(profileId: string, profileProducts: Product[]) {
+    if (profileProducts.length === 0) {
+      setOrdersByProduct({});
+      return;
+    }
+
+    const productIds = profileProducts.map((p) => p.id);
+
+    const { data, error } = await supabase
+      .from("orders")
+      .select(
+        "id, product_id, profile_id, buyer_email, buyer_name, amount_cents, currency"
+      )
+      .eq("profile_id", profileId)
+      .in("product_id", productIds)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      setMessage(`Errore nel caricamento degli ordini: ${error.message}`);
+      return;
+    }
+
+    const orders = (data ?? []) as Order[];
+
+    const byProduct: Record<string, Order[]> = {};
+
+    for (const order of orders) {
+      const existing = byProduct[order.product_id] ?? [];
+      existing.push(order);
+      byProduct[order.product_id] = existing;
+    }
+
+    setOrdersByProduct(byProduct);
+  }
+
+  function makeTrafficRows(
+    counts: Record<string, number>,
+    total: number
+  ): TrafficRow[] {
+    return Object.entries(counts)
+      .map(([label, visits]) => ({
+        label,
+        visits,
+        percentage: total > 0 ? Math.round((visits / total) * 100) : 0,
+      }))
+      .sort((a, b) => b.visits - a.visits || a.label.localeCompare(b.label));
+  }
+
+  async function loadAnalytics(profileId: string, profileLinks: BioLink[]) {
+  setAnalyticsLoading(true);
+
+  const now = new Date();
+  const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  const linkIds = profileLinks.map((link) => link.id);
+
+  const viewsPromise = supabase
+    .from("profile_views")
+    .select(
+      "profile_id, viewed_at, utm_source, utm_medium, utm_campaign, utm_content"
+    )
+    .eq("profile_id", profileId);
+
+  const clicksPromise =
+    linkIds.length > 0
+      ? supabase
+          .from("link_clicks")
+          .select("link_id, clicked_at")
+          .in("link_id", linkIds)
+      : Promise.resolve({ data: [], error: null });
+
+  const socialClicksPromise = supabase
+    .from("social_clicks")
+    .select("platform, clicked_at")
+    .eq("profile_id", profileId);
+
+  const [viewsResult, clicksResult, socialClicksResult] = await Promise.all([
+    viewsPromise,
+    clicksPromise,
+    socialClicksPromise,
+  ]);
+
+  setAnalyticsLoading(false);
+
+  if (viewsResult.error) {
+    setMessage(
+      `Errore nel caricamento delle visite: ${viewsResult.error.message}`
+    );
+    return;
+  }
+
+  if (clicksResult.error) {
+    setMessage(
+      `Errore nel caricamento dei click: ${clicksResult.error.message}`
+    );
+    return;
+  }
+
+  if (socialClicksResult.error) {
+    setMessage(
+      `Errore nel caricamento dei click social: ${socialClicksResult.error.message}`
+    );
+    return;
+  }
+
+  const views = (viewsResult.data ?? []) as ProfileView[];
+  const clicks = (clicksResult.data ?? []) as LinkClick[];
+  const socialClicks = (socialClicksResult.data ?? []) as SocialClick[];
+
+  let viewsLast24Hours = 0;
+  let viewsLast7Days = 0;
+  const sourceCounts: Record<string, number> = {};
+
+  for (const view of views) {
+    const viewedAt = new Date(view.viewed_at);
+
+    if (viewedAt >= oneDayAgo) {
+      viewsLast24Hours += 1;
+    }
+
+    if (viewedAt >= sevenDaysAgo) {
+      viewsLast7Days += 1;
+    }
+
+    const sourceLabel = view.utm_source ?? "Diretto / non tracciato";
+    sourceCounts[sourceLabel] = (sourceCounts[sourceLabel] ?? 0) + 1;
+  }
+
+  const totals: Record<string, number> = {};
+  let clicksLast24Hours = 0;
+  let clicksLast7Days = 0;
+
+  for (const click of clicks) {
+    totals[click.link_id] = (totals[click.link_id] ?? 0) + 1;
+
+    const clickedAt = new Date(click.clicked_at);
+
+    if (clickedAt >= oneDayAgo) {
+      clicksLast24Hours += 1;
+    }
+
+    if (clickedAt >= sevenDaysAgo) {
+      clicksLast7Days += 1;
+    }
+  }
+
+  const socialTotals: Record<string, number> = {};
+  let socialClicksLast24Hours = 0;
+  let socialClicksLast7Days = 0;
+
+  for (const socialClick of socialClicks) {
+    socialTotals[socialClick.platform] =
+      (socialTotals[socialClick.platform] ?? 0) + 1;
+
+    const clickedAt = new Date(socialClick.clicked_at);
+
+    if (clickedAt >= oneDayAgo) {
+      socialClicksLast24Hours += 1;
+    }
+
+    if (clickedAt >= sevenDaysAgo) {
+      socialClicksLast7Days += 1;
+    }
+  }
+
+  setTotalViews(views.length);
+  setTodayViews(viewsLast24Hours);
+  setWeekViews(viewsLast7Days);
+
+  setTotalClicks(clicks.length);
+  setTodayClicks(clicksLast24Hours);
+  setWeekClicks(clicksLast7Days);
+  setClicksByLink(totals);
+
+  setTotalSocialClicks(socialClicks.length);
+  setTodaySocialClicks(socialClicksLast24Hours);
+  setWeekSocialClicks(socialClicksLast7Days);
+  setSocialClicksByPlatform(socialTotals);
+
+  setTrafficSources(makeTrafficRows(sourceCounts, views.length));
+}
+
+  function isValidHttpUrl(value: string) {
+    try {
+      const parsedUrl = new URL(value);
+
+      return (
+        parsedUrl.protocol === "https:" || parsedUrl.protocol === "http:"
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  function toIsoOrNull(value: string) {
+    if (!value) {
+      return null;
+    }
+
+    const date = new Date(value);
+
+    return Number.isNaN(date.getTime()) ? null : date.toISOString();
+  }
+
+  function isValidSchedule(startsAt: string, endsAt: string) {
+    if (!startsAt || !endsAt) {
+      return true;
+    }
+
+    return new Date(startsAt) < new Date(endsAt);
+  }
+
+  function applyQuickSchedule(
+    preset: "hour" | "tonight" | "tomorrow" | "week",
+    target: "new" | "edit"
+  ) {
+    const now = new Date();
+    const startsAt = new Date(now);
+    let endsAt = new Date(now);
+
+    if (preset === "hour") {
+      endsAt.setHours(endsAt.getHours() + 1);
+    }
+
+    if (preset === "tonight") {
+      endsAt.setHours(23, 59, 0, 0);
+
+      if (endsAt <= now) {
+        endsAt.setDate(endsAt.getDate() + 1);
+      }
+    }
+
+    if (preset === "tomorrow") {
+      endsAt.setDate(endsAt.getDate() + 1);
+    }
+
+    if (preset === "week") {
+      endsAt.setDate(endsAt.getDate() + 7);
+    }
+
+    if (target === "new") {
+      setLinkScheduleEnabled(true);
+      setLinkStartsAt(toDateTimeLocalValue(startsAt));
+      setLinkEndsAt(toDateTimeLocalValue(endsAt));
+      return;
+    }
+
+    setEditingScheduleEnabled(true);
+    setEditingStartsAt(toDateTimeLocalValue(startsAt));
+    setEditingEndsAt(toDateTimeLocalValue(endsAt));
+  }
+
+  function updateGradient(
+  start = gradientStart,
+  end = gradientEnd,
+  angle = gradientAngle
+) {
+  setGradientStart(start);
+  setGradientEnd(end);
+  setGradientAngle(angle);
+  setBgColor(`linear-gradient(${angle}, ${start} 0%, ${end} 100%)`);
+}
+
+  async function handleAvatarChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+
+    if (!file || !userId) {
+      return;
+    }
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    const maxSizeInBytes = 2 * 1024 * 1024;
+
+    if (!allowedTypes.includes(file.type)) {
+      setMessage("Scegli un'immagine JPG, PNG o WEBP.");
+      event.target.value = "";
+      return;
+    }
+
+    if (file.size > maxSizeInBytes) {
+      setMessage("L'immagine deve pesare al massimo 2 MB.");
+      event.target.value = "";
+      return;
+    }
+
+    const extension =
+      file.type === "image/png"
+        ? "png"
+        : file.type === "image/webp"
+          ? "webp"
+          : "jpg";
+
+    const filePath = `${userId}/avatar.${extension}`;
+
+    setUploadingAvatar(true);
+    setMessage("");
+
+    const { error: uploadError } = await supabase.storage
+      .from("avatars")
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: true,
+        contentType: file.type,
+      });
+
+    if (uploadError) {
+      setUploadingAvatar(false);
+      setMessage(
+        `Non Ã¨ stato possibile caricare l'immagine: ${uploadError.message}`
+      );
+      event.target.value = "";
+      return;
+    }
+
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("avatars").getPublicUrl(filePath);
+
+    const urlWithCacheBuster = `${publicUrl}?v=${Date.now()}`;
+
+    const { error: profileError } = await supabase
+      .from("profiles")
+      .update({
+        avatar_url: urlWithCacheBuster,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", userId);
+
+    setUploadingAvatar(false);
+    event.target.value = "";
+
+    if (profileError) {
+      setMessage(
+        `Immagine caricata, ma non Ã¨ stato possibile salvarla nel profilo: ${profileError.message}`
+      );
+      return;
+    }
+
+    setAvatarUrl(urlWithCacheBuster);
+    setMessage("Foto profilo aggiornata.");
+  }
+
+  async function handleBgChange(event: ChangeEvent<HTMLInputElement>) {
+  const file = event.target.files?.[0];
+  if (!file || !userId) return;
+  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+  if (!allowedTypes.includes(file.type)) {
+    setMessage("Scegli un'immagine JPG, PNG o WEBP.");
+    event.target.value = "";
+    return;
+  }
+  if (file.size > 3 * 1024 * 1024) {
+    setMessage("L'immagine deve pesare al massimo 3 MB.");
+    event.target.value = "";
+    return;
+  }
+  const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+  const filePath = `${userId}/bg.${extension}`;
+  setUploadingBg(true);
+  setMessage("");
+  const { error: uploadError } = await supabase.storage.from("avatars").upload(filePath, file, {
+    cacheControl: "3600",
+    upsert: true,
+    contentType: file.type,
+  });
+  if (uploadError) {
+    setUploadingBg(false);
+    setMessage(`Non è stato possibile caricare lo sfondo: ${uploadError.message}`);
+    event.target.value = "";
+    return;
+  }
+  const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(filePath);
+  const urlWithCacheBuster = `${publicUrl}?v=${Date.now()}`;
+  const { error: profileError } = await supabase.from("profiles").update({
+    bg_image_url: urlWithCacheBuster,
+    updated_at: new Date().toISOString(),
+  }).eq("id", userId);
+  setUploadingBg(false);
+  event.target.value = "";
+  if (profileError) {
+    setMessage(`Sfondo caricato, ma non è stato possibile salvarlo: ${profileError.message}`);
+    return;
+  }
+  setBgImageUrl(urlWithCacheBuster);
+  setMessage("Sfondo aggiornato.");
+}
+
+  async function saveLinkOrder(reorderedLinks: BioLink[]) {
+    const results = await Promise.all(
+      reorderedLinks.map((link, position) =>
+        supabase.from("links").update({ position }).eq("id", link.id)
+      )
+    );
+
+    return results.find((result) => result.error)?.error;
+  }
+  
+  async function saveSocialLinksOrder(reorderedSocialLinks: SocialLinkRow[]) {
+  const results = await Promise.all(
+    reorderedSocialLinks.map((socialLink, position) =>
+      supabase
+        .from("social_links")
+        .update({ position })
+        .eq("id", socialLink.id)
+    )
+  );
+
+  return results.find((result) => result.error)?.error;
+}
+
+  async function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id || reordering) {
+      return;
+    }
+
+    const oldIndex = links.findIndex((link) => link.id === active.id);
+    const newIndex = links.findIndex((link) => link.id === over.id);
+
+    if (oldIndex === -1 || newIndex === -1) {
+      return;
+    }
+
+    const reorderedLinks = arrayMove(links, oldIndex, newIndex).map(
+      (link, position) => ({
+        ...link,
+        position,
+      })
+    );
+
+    const previousLinks = links;
+
+    setLinks(reorderedLinks);
+    setReordering(true);
+    setMessage("");
+
+    const error = await saveLinkOrder(reorderedLinks);
+
+    setReordering(false);
+
+    if (error) {
+      setLinks(previousLinks);
+      setMessage(`Non Ã¨ stato possibile salvare l'ordine: ${error.message}`);
+      return;
+    }
+
+    setMessage("Ordine dei link salvato.");
+  }
+
+  async function handleSocialDragEnd(event: DragEndEvent) {
+  const { active, over } = event;
+
+  if (!over || active.id === over.id || savingSocials) {
+    return;
+  }
+
+  const oldIndex = socialLinks.findIndex(
+    (socialLink) => socialLink.id === active.id
+  );
+
+  const newIndex = socialLinks.findIndex(
+    (socialLink) => socialLink.id === over.id
+  );
+
+  if (oldIndex === -1 || newIndex === -1) {
+    return;
+  }
+
+  const previousSocialLinks = socialLinks;
+
+  const reorderedSocialLinks = arrayMove(
+    socialLinks,
+    oldIndex,
+    newIndex
+  ).map((socialLink, position) => ({
+    ...socialLink,
+    position,
+  }));
+
+  setSocialLinks(reorderedSocialLinks);
+  setSavingSocials(true);
+  setMessage("");
+
+  const error = await saveSocialLinksOrder(reorderedSocialLinks);
+
+  setSavingSocials(false);
+
+  if (error) {
+    setSocialLinks(previousSocialLinks);
+    setMessage(
+      `Non è stato possibile salvare l'ordine dei social: ${error.message}`
+    );
+    return;
+  }
+
+  setMessage("Ordine delle icone social salvato.");
+}
+
+async function handleSaveSocialSettings() {
+  if (!userId) {
+    setMessage("Devi prima creare e salvare il profilo.");
+    return;
+  }
+
+  setSavingSocials(true);
+  setMessage("");
+
+  const cleanSocialPosition =
+    socialPosition === "below_profile" ? "below_profile" : "footer";
+
+  const { error: profileError } = await supabase
+    .from("profiles")
+    .update({
+      social_position: cleanSocialPosition,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", userId);
+
+  if (profileError) {
+    setSavingSocials(false);
+    setMessage(
+      `Non è stato possibile salvare la posizione dei social: ${profileError.message}`
+    );
+    return;
+  }
+
+  try {
+    await saveSocialLinks(userId, socialLinks);
+
+    const refreshedSocialLinks = await loadSocialLinks(userId);
+    setSocialLinks(refreshedSocialLinks);
+
+    setMessage("Modifiche social salvate.");
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Errore sconosciuto";
+
+    setMessage(
+      `Posizione social salvata, ma non è stato possibile salvare i link: ${errorMessage}`
+    );
+  } finally {
+    setSavingSocials(false);
+  }
+}
+
+ async function handleSaveProfile(event: FormEvent<HTMLFormElement>) {
+  event.preventDefault();
+
+  const cleanUsername = username.trim().toLowerCase();
+  const cleanDisplayName = displayName.trim();
+  const cleanBio = bio.trim();
+  const cleanBgColor = bgColor.trim() || null;
+  const cleanBgImageUrl = bgImageUrl.trim() || null;
+  const cleanButtonStyle = buttonStyle.trim() || "solid";
+  const cleanSocialPosition =
+  socialPosition === "below_profile" ? "below_profile" : "footer";
+
+  if (!/^[a-z0-9_]{3,30}$/.test(cleanUsername)) {
+    setMessage(
+      "Lo username deve avere da 3 a 30 caratteri e usare solo lettere minuscole, numeri o underscore (_)."
+    );
+    return;
+  }
+
+  if (!cleanDisplayName) {
+    setMessage("Inserisci un nome da mostrare.");
+    return;
+  }
+
+  setSavingProfile(true);
+  setMessage("");
+
+  const { error } = await supabase.from("profiles").upsert(
+    {
+      id: userId,
+      username: cleanUsername,
+      display_name: cleanDisplayName,
+      bio: cleanBio,
+      avatar_url: avatarUrl || null,
+      bg_color: cleanBgColor,
+      bg_image_url: cleanBgImageUrl,
+      button_style: cleanButtonStyle,
+social_position: cleanSocialPosition,
+updated_at: new Date().toISOString(),
+    },
+    {
+      onConflict: "id",
+    }
+  );
+
+  if (error) {
+    setSavingProfile(false);
+
+    if (error.code === "23505") {
+      setMessage("Questo username è già occupato. Scegline un altro.");
+      return;
+    }
+
+    setMessage(`Non è stato possibile salvare il profilo: ${error.message}`);
+    return;
+  }
+
+  setSavingProfile(false);
+setMessage("Profilo salvato con successo.");
+
+  setUsername(cleanUsername);
+  setDisplayName(cleanDisplayName);
+  setBio(cleanBio);
+  setBgColor(cleanBgColor ?? "");
+  setBgImageUrl(cleanBgImageUrl ?? "");
+  setButtonStyle(cleanButtonStyle);
+}
+
+  async function handleAddLink(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!userId) {
+      setMessage("Devi prima creare e salvare il profilo.");
+      return;
+    }
+
+    const cleanTitle = linkTitle.trim();
+    const cleanUrl = linkUrl.trim();
+    const cleanIconUrl = null;
+
+    if (newLinkDisplayType === "button" && !cleanTitle) {
+  setMessage("Inserisci il titolo del link.");
+  return;
+}
+
+if (newLinkDisplayType === "image" && !newLinkImageFile) {
+  setMessage("Carica un'immagine per il link immagine.");
+  return;
+}
+
+    if (!isValidHttpUrl(cleanUrl)) {
+      setMessage(
+        "Inserisci un URL valido che inizi con https:// oppure http://"
+      );
+      return;
+    }
+
+    if (
+      linkScheduleEnabled &&
+      !isValidSchedule(linkStartsAt, linkEndsAt)
+    ) {
+      setMessage(
+        "La data di fine deve essere successiva alla data di inizio."
+      );
+      return;
+    }
+
+    setSavingLink(true);
+    setMessage("");
+
+    const abGroupValue = crypto.randomUUID();
+
+    const { data: newLink, error } = await supabase
+      .from("links")
+      .insert({
+        profile_id: userId,
+        title:
+  newLinkDisplayType === "image"
+    ? cleanTitle || "Link immagine"
+    : cleanTitle,
+        url: cleanUrl,
+        display_type: newLinkDisplayType,
+        image_url: null,
+        position: links.length,
+        starts_at: linkScheduleEnabled ? toIsoOrNull(linkStartsAt) : null,
+        ends_at: linkScheduleEnabled ? toIsoOrNull(linkEndsAt) : null,
+        ab_group: abGroupValue,
+        is_variant: false,
+        variant_of: null,
+        icon_url: cleanIconUrl,
+      })
+      .select(
+        "id, profile_id, title, url, position, starts_at, ends_at, ab_group, is_variant, variant_of, icon_url, icon_size, icon_position_x, icon_position_y, display_type, image_url, image_height, background_color, badge_text, text_color, hover_effect "
+
+
+      )
+      .single();
+
+    setSavingLink(false);
+
+    if (error) {
+      setMessage(`Non Ã¨ stato possibile aggiungere il link: ${error.message}`);
+      return;
+    }
+
+    let linkWithIcon = newLink as BioLink;
+
+if (newLinkIconFile) {
+  const extension =
+    newLinkIconFile.type === "image/png"
+      ? "png"
+      : newLinkIconFile.type === "image/webp"
+        ? "webp"
+        : "jpg";
+
+  const filePath = `${userId}/links/${linkWithIcon.id}/icon.${extension}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("avatars")
+    .upload(filePath, newLinkIconFile, {
+      cacheControl: "3600",
+      upsert: true,
+      contentType: newLinkIconFile.type,
+    });
+
+  if (uploadError) {
+    setMessage(
+      `Link creato, ma non è stato possibile caricare l'icona: ${uploadError.message}`
+    );
+  } else {
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("avatars").getPublicUrl(filePath);
+
+    const iconUrlWithCacheBuster = `${publicUrl}?v=${Date.now()}`;
+
+    const { data: updatedLink, error: updateError } = await supabase
+      .from("links")
+      .update({ icon_url: iconUrlWithCacheBuster })
+      .eq("id", linkWithIcon.id)
+      .select(
+        "id, profile_id, title, url, position, starts_at, ends_at, ab_group, is_variant, variant_of, icon_url, icon_size, icon_position_x, icon_position_y, display_type, image_url, image_height, background_color, badge_text, text_color, hover_effect "
+
+
+      )
+      .single();
+
+    if (updateError) {
+      setMessage(
+        `Link creato, ma non è stato possibile associare l'icona: ${updateError.message}`
+      );
+    } else if (updatedLink) {
+      linkWithIcon = updatedLink as BioLink;
+    }
+  }
+}
+
+if (newLinkDisplayType === "image" && newLinkImageFile) {
+  const extension =
+    newLinkImageFile.type === "image/png"
+      ? "png"
+      : newLinkImageFile.type === "image/webp"
+        ? "webp"
+        : "jpg";
+
+  const filePath = `${userId}/links/${linkWithIcon.id}/banner.${extension}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from("avatars")
+    .upload(filePath, newLinkImageFile, {
+      cacheControl: "3600",
+      upsert: true,
+      contentType: newLinkImageFile.type,
+    });
+
+  if (uploadError) {
+    setMessage(
+      `Link creato, ma non è stato possibile caricare l'immagine: ${uploadError.message}`
+    );
+  } else {
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("avatars").getPublicUrl(filePath);
+
+    const imageUrlWithCacheBuster = `${publicUrl}?v=${Date.now()}`;
+
+    const { data: updatedLink, error: updateError } = await supabase
+      .from("links")
+      .update({ image_url: imageUrlWithCacheBuster })
+      .eq("id", linkWithIcon.id)
+      .select(
+        "id, profile_id, title, url, position, starts_at, ends_at, ab_group, is_variant, variant_of, icon_url, icon_size, icon_position_x, icon_position_y, display_type, image_url, image_height, background_color, badge_text, text_color, hover_effect "
+
+      )
+      .single();
+
+    if (updateError) {
+      setMessage(
+        `Link creato, ma non è stato possibile associare l'immagine: ${updateError.message}`
+      );
+    } else if (updatedLink) {
+      linkWithIcon = updatedLink as BioLink;
+    }
+  }
+}
+
+    const updatedLinks = [...links, linkWithIcon];
+
+    setLinks(updatedLinks);
+    setLinkTitle("");
+    setLinkUrl("");
+    setLinkIconUrl("");
+    setNewLinkIconFile(null);
+    setNewLinkDisplayType("button");
+setNewLinkImageFile(null);
+setNewLinkImagePreview("");
+    setLinkScheduleEnabled(false);
+    setLinkStartsAt("");
+    setLinkEndsAt("");
+
+    await loadAnalytics(userId, updatedLinks);
+    setMessage("Link aggiunto con successo.");
+  }
+
+  function startEditingLink(link: BioLink) {
+    setEditingLinkId(link.id);
+    setEditingTitle(link.title);
+    setEditingUrl(link.url);
+    setEditingIconUrl(link.icon_url ?? "");
+    setEditingScheduleEnabled(Boolean(link.starts_at || link.ends_at));
+    setEditingStartsAt(fromIsoToDateTimeLocal(link.starts_at));
+    setEditingEndsAt(fromIsoToDateTimeLocal(link.ends_at));
+    setEditingBackgroundColor(link.background_color ?? "");
+    setEditingImageHeight(link.image_height ?? 220);
+    setEditingBadgeText(link.badge_text ?? "");
+    setEditingTextColor(link.text_color ?? "");
+    setMessage("");
+  }
+
+async function handleLinkIconChange(event: ChangeEvent<HTMLInputElement>) {
+  const file = event.target.files?.[0];
+
+  if (!file || !userId || !editingLinkId) {
+    return;
+  }
+
+  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+  const maxSizeInBytes = 1 * 1024 * 1024;
+
+  if (!allowedTypes.includes(file.type)) {
+    setMessage("Scegli un'icona JPG, PNG o WEBP.");
+    event.target.value = "";
+    return;
+  }
+
+  if (file.size > maxSizeInBytes) {
+    setMessage("L'icona deve pesare al massimo 1 MB.");
+    event.target.value = "";
+    return;
+  }
+
+  const extension =
+    file.type === "image/png"
+      ? "png"
+      : file.type === "image/webp"
+        ? "webp"
+        : "jpg";
+
+  const filePath = `${userId}/links/${editingLinkId}/icon.${extension}`;
+
+  setUploadingLinkIcon(true);
+  setMessage("");
+
+  const { error: uploadError } = await supabase.storage
+    .from("avatars")
+    .upload(filePath, file, {
+      cacheControl: "3600",
+      upsert: true,
+      contentType: file.type,
+    });
+
+  if (uploadError) {
+    setUploadingLinkIcon(false);
+    setMessage(
+      `Non è stato possibile caricare l'icona: ${uploadError.message}`
+    );
+    event.target.value = "";
+    return;
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("avatars").getPublicUrl(filePath);
+
+  const iconUrlWithCacheBuster = `${publicUrl}?v=${Date.now()}`;
+
+  setEditingIconUrl(iconUrlWithCacheBuster);
+  setUploadingLinkIcon(false);
+  event.target.value = "";
+  setMessage("Icona caricata. Premi “Salva modifiche” per confermarla.");
+}
+
+  function cancelEditingLink() {
+    setEditingLinkId("");
+    setEditingTitle("");
+    setEditingUrl("");
+    setEditingIconSize(24);
+setEditingIconPositionX("left");
+setEditingIconPositionY("center");
+setEditingImageHeight(220);
+setEditingBackgroundColor("");
+setEditingBadgeText("");
+setEditingTextColor("");
+    setEditingIconUrl("");
+    setEditingScheduleEnabled(false);
+    setEditingStartsAt("");
+    setEditingEndsAt("");
+  }
+
+function handleNewLinkIconChange(event: ChangeEvent<HTMLInputElement>) {
+  const file = event.target.files?.[0];
+
+  if (!file) {
+    return;
+  }
+
+  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+  const maxSizeInBytes = 1 * 1024 * 1024;
+
+  if (!allowedTypes.includes(file.type)) {
+    setMessage("Scegli un'icona JPG, PNG o WEBP.");
+    event.target.value = "";
+    return;
+  }
+
+  if (file.size > maxSizeInBytes) {
+    setMessage("L'icona deve pesare al massimo 1 MB.");
+    event.target.value = "";
+    return;
+  }
+
+  setNewLinkIconFile(file);
+  setMessage("Icona pronta: verrà caricata quando aggiungi il link.");
+}
+
+function handleNewLinkImageChange(event: ChangeEvent<HTMLInputElement>) {
+  const file = event.target.files?.[0];
+
+  if (!file) {
+    return;
+  }
+
+  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+  const maxSizeInBytes = 3 * 1024 * 1024;
+
+  if (!allowedTypes.includes(file.type)) {
+    setMessage("Scegli un'immagine JPG, PNG o WEBP.");
+    event.target.value = "";
+    return;
+  }
+
+  if (file.size > maxSizeInBytes) {
+    setMessage("L'immagine deve pesare al massimo 3 MB.");
+    event.target.value = "";
+    return;
+  }
+
+  setNewLinkImageFile(file);
+  setNewLinkImagePreview(URL.createObjectURL(file));
+  setMessage("Immagine pronta: verrà caricata quando aggiungi il link.");
+}
+
+  function handleNewScheduleToggle(enabled: boolean) {
+    setLinkScheduleEnabled(enabled);
+
+    if (!enabled) {
+      setLinkStartsAt("");
+      setLinkEndsAt("");
+    }
+  }
+
+  function handleEditingScheduleToggle(enabled: boolean) {
+    setEditingScheduleEnabled(enabled);
+
+    if (!enabled) {
+      setEditingStartsAt("");
+      setEditingEndsAt("");
+    }
+  }
+
+  async function handleSaveLinkEdit(linkId: string) {
+    const cleanTitle = editingTitle.trim();
+    const cleanUrl = editingUrl.trim();
+    const cleanIconUrl = editingIconUrl.trim() || null;
+
+    if (!cleanTitle) {
+      setMessage("Inserisci il titolo del link.");
+      return;
+    }
+
+    if (!isValidHttpUrl(cleanUrl)) {
+      setMessage(
+        "Inserisci un URL valido che inizi con https:// oppure http://"
+      );
+      return;
+    }
+
+    if (
+      editingScheduleEnabled &&
+      !isValidSchedule(editingStartsAt, editingEndsAt)
+    ) {
+      setMessage(
+        "La data di fine deve essere successiva alla data di inizio."
+      );
+      return;
+    }
+
+    setSavingEdit(true);
+    setMessage("");
+
+    const { data: updatedLink, error } = await supabase
+      .from("links")
+      .update({
+  title: cleanTitle,
+  url: cleanUrl,
+  icon_url: cleanIconUrl,
+  icon_size: editingIconSize,
+  icon_position_x: editingIconPositionX,
+  icon_position_y: editingIconPositionY,
+  background_color: editingBackgroundColor.trim() || null,
+  image_height:
+  editingImageHeight >= 120 && editingImageHeight <= 520
+    ? editingImageHeight
+    : 220,
+  badge_text: editingBadgeText.trim().slice(0, 24) || null,
+  text_color: editingTextColor.trim() || null,
+  hover_effect: editingHoverEffect,
+  starts_at: editingScheduleEnabled
+    ? toIsoOrNull(editingStartsAt)
+    : null,
+  ends_at: editingScheduleEnabled ? toIsoOrNull(editingEndsAt) : null,
+})
+      .eq("id", linkId)
+      .select(
+        "id, profile_id, title, url, position, starts_at, ends_at, ab_group, is_variant, variant_of, icon_url, icon_size, icon_position_x, icon_position_y, display_type, image_url, image_height, background_color, badge_text, text_color, hover_effect "
+
+
+      )
+      .single();
+
+    setSavingEdit(false);
+
+    if (error) {
+      setMessage(`Non Ã¨ stato possibile modificare il link: ${error.message}`);
+      return;
+    }
+
+    setLinks((currentLinks) =>
+      currentLinks.map((link) =>
+        link.id === linkId ? (updatedLink as BioLink) : link
+      )
+    );
+
+    cancelEditingLink();
+    setMessage("Link aggiornato con successo.");
+  }
+
+  function openAddVariantModal(link: BioLink) {
+    setAddingVariantLinkId(link.id);
+    setVariantTitle("");
+    setVariantUrl("");
+    setSavingVariant(false);
+    setVariantMessage("");
+  }
+
+  function closeAddVariantModal() {
+    setAddingVariantLinkId("");
+    setVariantTitle("");
+    setVariantUrl("");
+    setSavingVariant(false);
+    setVariantMessage("");
+  }
+
+  async function createVariant() {
+    const originalLink = links.find((l) => l.id === addingVariantLinkId);
+
+    if (!originalLink) {
+      setVariantMessage("Link originale non trovato.");
+      return;
+    }
+
+    const cleanTitle = variantTitle.trim();
+    const cleanUrl = variantUrl.trim();
+
+    if (!cleanTitle) {
+      setVariantMessage("Inserisci il titolo della variante.");
+      return;
+    }
+
+    if (!isValidHttpUrl(cleanUrl)) {
+      setVariantMessage(
+        "Inserisci un URL valido che inizi con https:// oppure http://"
+      );
+      return;
+    }
+
+    setSavingVariant(true);
+    setVariantMessage("");
+
+    const { data: newVariant, error } = await supabase
+      .from("links")
+      .insert({
+        profile_id: userId,
+        title: cleanTitle,
+        url: cleanUrl,
+        position: originalLink.position + 1,
+        starts_at: originalLink.starts_at,
+        ends_at: originalLink.ends_at,
+        ab_group: originalLink.ab_group ?? crypto.randomUUID(),
+        is_variant: true,
+        variant_of: originalLink.id,
+        icon_url: originalLink.icon_url,
+      })
+      .select(
+        "id, profile_id, title, url, position, starts_at, ends_at, ab_group, is_variant, variant_of, icon_url, icon_size, icon_position_x, icon_position_y, display_type, image_url, image_height, background_color, badge_text, text_color, hover_effect "
+
+
+      )
+      .single();
+
+    setSavingVariant(false);
+
+    if (error) {
+      setVariantMessage(
+        `Non Ã¨ stato possibile creare la variante: ${error.message}`
+      );
+      return;
+    }
+
+    const updatedLinks = [...links, newVariant as BioLink];
+
+    setLinks(updatedLinks);
+    closeAddVariantModal();
+
+    await loadAnalytics(userId, updatedLinks);
+    setMessage("Variante A/B creata con successo.");
+  }
+
+  async function handleDeleteLink(linkId: string) {
+    const previousLinks = links;
+
+    setDeletingLinkId(linkId);
+    setMessage("");
+
+    const { error } = await supabase.from("links").delete().eq("id", linkId);
+
+    setDeletingLinkId("");
+
+    if (error) {
+      setMessage(`Non Ã¨ stato possibile eliminare il link: ${error.message}`);
+      return;
+    }
+
+    const remainingLinks = links
+      .filter((link) => link.id !== linkId)
+      .map((link, position) => ({ ...link, position }));
+
+    setLinks(remainingLinks);
+
+    const reorderError = await saveLinkOrder(remainingLinks);
+
+    if (reorderError) {
+      setLinks(previousLinks);
+      setMessage(
+        `Link eliminato, ma non Ã¨ stato possibile riordinare: ${reorderError.message}`
+      );
+      return;
+    }
+
+    await loadAnalytics(userId, remainingLinks);
+    setMessage("Link eliminato.");
+  }
+
+  function openConfirmWinnerModal(
+    group: AbGroupStats,
+    winner: { link: BioLink; clicks: number }
+  ) {
+    const otherVariants = group.links.filter(
+      (l) => l.id !== winner.link.id
+    );
+
+    setConfirmWinnerGroupId(group.ab_group);
+    setConfirmWinnerLink(winner.link);
+    setConfirmOtherVariants(otherVariants);
+    setSavingWinner(false);
+    setWinnerMessage("");
+  }
+
+  function closeConfirmWinnerModal() {
+    setConfirmWinnerGroupId("");
+    setConfirmWinnerLink(null);
+    setConfirmOtherVariants([]);
+    setSavingWinner(false);
+    setWinnerMessage("");
+  }
+
+  async function makeWinnerDefinitive() {
+    if (!confirmWinnerLink || confirmOtherVariants.length === 0) {
+      return;
+    }
+
+    setSavingWinner(true);
+    setWinnerMessage("");
+
+    const idsToDelete = confirmOtherVariants.map((v) => v.id);
+
+    const deletePromises = idsToDelete.map((id) =>
+      supabase.from("links").delete().eq("id", id)
+    );
+
+    const deleteResults = await Promise.all(deletePromises);
+
+    const deleteError = deleteResults.find((r) => r.error)?.error;
+
+    if (deleteError) {
+      setSavingWinner(false);
+      setWinnerMessage(
+        `Non Ã¨ stato possibile eliminare le altre varianti: ${deleteError.message}`
+      );
+      return;
+    }
+
+    const { error: updateError } = await supabase
+      .from("links")
+      .update({
+        ab_group: null,
+        is_variant: false,
+        variant_of: null,
+      })
+      .eq("id", confirmWinnerLink.id);
+
+    setSavingWinner(false);
+
+    if (updateError) {
+      setWinnerMessage(
+        `Variante resa definitiva, ma errore nel pulire i campi: ${updateError.message}`
+      );
+      return;
+    }
+
+    const remainingLinks = links.filter(
+      (l) =>
+        l.ab_group !== confirmWinnerGroupId ||
+        l.id === confirmWinnerLink.id
+    );
+
+    const reorderedLinks = remainingLinks.map((link, position) => ({
+      ...link,
+      position,
+    }));
+
+    setLinks(reorderedLinks);
+
+    const reorderError = await saveLinkOrder(reorderedLinks);
+
+    if (reorderError) {
+      setWinnerMessage(
+        `Operazione completata, ma errore nel riordinare: ${reorderError.message}`
+      );
+      return;
+    }
+
+    closeConfirmWinnerModal();
+    setMessage("Variante resa definitiva. Le altre varianti sono state eliminate.");
+    await loadAnalytics(userId, reorderedLinks);
+  }
+
+  function openNewProductModal() {
+    setEditingProduct(null);
+    setProductForm({
+      title: "",
+      description: "",
+      priceCents: "",
+      currency: "EUR",
+      fileUrl: "",
+      externalUrl: "",
+      coverImageUrl: "",
+    });
+    setProductMessage("");
+    setProductModalOpen(true);
+  }
+
+  function openEditProductModal(product: Product) {
+    setEditingProduct(product);
+    setProductForm({
+      title: product.title,
+      description: product.description,
+      priceCents: (product.price_cents / 100).toFixed(2),
+      currency: product.currency,
+      fileUrl: product.file_url ?? "",
+      externalUrl: product.external_url ?? "",
+      coverImageUrl: product.cover_image_url ?? "",
+    });
+    setProductMessage("");
+    setProductModalOpen(true);
+  }
+
+  function closeProductModal() {
+    setProductModalOpen(false);
+    setEditingProduct(null);
+    setProductMessage("");
+  }
+
+  async function saveProduct() {
+    if (!userId) {
+      setProductMessage("Devi prima creare e salvare il profilo.");
+      return;
+    }
+
+    const cleanTitle = productForm.title.trim();
+    const cleanDescription = productForm.description.trim();
+    const priceCents = Math.round(Number(productForm.priceCents) * 100);
+    const cleanCurrency = productForm.currency;
+    const cleanFileUrl = productForm.fileUrl.trim() || null;
+    const cleanExternalUrl = productForm.externalUrl.trim() || null;
+    const cleanCoverImageUrl = productForm.coverImageUrl.trim() || null;
+
+    if (!cleanTitle) {
+      setProductMessage("Inserisci un titolo per il prodotto.");
+      return;
+    }
+
+    if (priceCents < 0) {
+      setProductMessage("Il prezzo non puÃ² essere negativo.");
+      return;
+    }
+
+    if (!cleanFileUrl && !cleanExternalUrl) {
+      setProductMessage(
+        "Inserisci almeno un file URL o un link esterno per il prodotto."
+      );
+      return;
+    }
+
+    setSavingProduct(true);
+    setProductMessage("");
+
+    if (editingProduct) {
+      const { error } = await supabase
+        .from("products")
+        .update({
+          title: cleanTitle,
+          description: cleanDescription,
+          price_cents: priceCents,
+          currency: cleanCurrency,
+          file_url: cleanFileUrl,
+          external_url: cleanExternalUrl,
+          cover_image_url: cleanCoverImageUrl,
+        })
+        .eq("id", editingProduct.id);
+
+      setSavingProduct(false);
+
+      if (error) {
+        setProductMessage(
+          `Non Ã¨ stato possibile modificare il prodotto: ${error.message}`
+        );
+        return;
+      }
+
+      const updatedProducts = products.map((p) =>
+        p.id === editingProduct.id
+          ? {
+              ...p,
+              title: cleanTitle,
+              description: cleanDescription,
+              price_cents: priceCents,
+              currency: cleanCurrency,
+              file_url: cleanFileUrl,
+              external_url: cleanExternalUrl,
+              cover_image_url: cleanCoverImageUrl,
+            }
+          : p
+      );
+
+      setProducts(updatedProducts);
+      closeProductModal();
+      setMessage("Prodotto aggiornato con successo.");
+      await loadOrders(userId, updatedProducts);
+      return;
+    }
+
+    const { data: newProduct, error } = await supabase
+      .from("products")
+      .insert({
+        profile_id: userId,
+        title: cleanTitle,
+        description: cleanDescription,
+        price_cents: priceCents,
+        currency: cleanCurrency,
+        file_url: cleanFileUrl,
+        external_url: cleanExternalUrl,
+        cover_image_url: cleanCoverImageUrl,
+      })
+      .select(
+        "id, profile_id, title, description, price_cents, currency, file_url, external_url, cover_image_url"
+      )
+      .single();
+
+    setSavingProduct(false);
+
+    if (error) {
+      setProductMessage(
+        `Non Ã¨ stato possibile creare il prodotto: ${error.message}`
+      );
+      return;
+    }
+
+    const updatedProducts = [newProduct as Product, ...products];
+
+    setProducts(updatedProducts);
+    closeProductModal();
+    setMessage("Prodotto creato con successo.");
+    await loadOrders(userId, updatedProducts);
+  }
+
+  async function deleteProduct(productId: string) {
+    const previousProducts = products;
+
+    setMessage("");
+
+    const { error } = await supabase
+      .from("products")
+      .delete()
+      .eq("id", productId);
+
+    if (error) {
+      setMessage(`Non Ã¨ stato possibile eliminare il prodotto: ${error.message}`);
+      return;
+    }
+
+    const remainingProducts = products.filter((p) => p.id !== productId);
+
+    setProducts(remainingProducts);
+    setMessage("Prodotto eliminato.");
+    await loadOrders(userId, remainingProducts);
+  }
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    router.replace("/login");
+  }
+
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-[#0c0d12] px-6 py-10 text-white">
+        <p className="text-center text-white/60">Caricamento dashboard...</p>
+      </main>
+    );
+  }
+
+  const cleanUsername = username.trim().toLowerCase();
+  const publicProfileUrl = cleanUsername ? `/${cleanUsername}` : "";
+
+  const totalCtr =
+    totalViews > 0 ? Math.round((totalClicks / totalViews) * 100) : 0;
+
+  const topLink = links.reduce<BioLink | null>((currentTopLink, link) => {
+    if (!currentTopLink) {
+      return link;
+    }
+
+    return (clicksByLink[link.id] ?? 0) >
+      (clicksByLink[currentTopLink.id] ?? 0)
+      ? link
+      : currentTopLink;
+  }, null);
+
+  const topLinkClicks = topLink ? clicksByLink[topLink.id] ?? 0 : 0;
+
+  function getVariantsForLink(link: BioLink) {
+    if (!link.ab_group) {
+      return [];
+    }
+
+    return links.filter(
+      (l) =>
+        l.ab_group === link.ab_group &&
+        l.id !== link.id &&
+        l.is_variant
+    );
+  }
+
+  function getAbGroups(): AbGroupStats[] {
+    const groupsMap = new Map<string, BioLink[]>();
+
+    for (const link of links) {
+      if (!link.ab_group) {
+        continue;
+      }
+
+      const existing = groupsMap.get(link.ab_group) ?? [];
+      existing.push(link);
+      groupsMap.set(link.ab_group, existing);
+    }
+
+    const result: AbGroupStats[] = [];
+
+    for (const [ab_group, groupLinks] of groupsMap.entries()) {
+      if (groupLinks.length <= 1) {
+        continue;
+      }
+
+      const stats = groupLinks.map((l) => ({
+        link: l,
+        clicks: clicksByLink[l.id] ?? 0,
+      }));
+
+      const totalClicksInGroup = stats.reduce(
+        (sum, s) => sum + s.clicks,
+        0
+      );
+
+      const winner = stats.reduce<{ link: BioLink; clicks: number } | null>(
+        (currentWinner, s) => {
+          if (!currentWinner) {
+            return s;
+          }
+
+          return s.clicks > currentWinner.clicks ? s : currentWinner;
+        },
+        null
+      );
+
+      result.push({
+        ab_group,
+        links: groupLinks,
+        stats,
+        totalClicksInGroup,
+        winner: winner ?? null,
+      });
+    }
+
+    return result;
+  }
+
+  const abGroups = getAbGroups();
+
+  function formatPrice(cents: number, currency: string) {
+    const locale =
+      currency === "USD"
+        ? "en-US"
+        : currency === "GBP"
+          ? "en-GB"
+          : "it-IT";
+
+    return new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency,
+    }).format(cents / 100);
+  }
+  
+  const previewLinks = links.map((l) => {
+  const isCurrentlyEditing = l.id === editingLinkId;
+
+  return {
+    id: l.id,
+    title: isCurrentlyEditing ? editingTitle || l.title : l.title,
+    url: isCurrentlyEditing ? editingUrl || l.url : l.url,
+    icon_url: isCurrentlyEditing
+      ? editingIconUrl || null
+      : l.icon_url,
+    icon_size: isCurrentlyEditing ? editingIconSize : l.icon_size,
+    icon_position_x: isCurrentlyEditing
+      ? editingIconPositionX
+      : l.icon_position_x,
+    icon_position_y: isCurrentlyEditing
+      ? editingIconPositionY
+      : l.icon_position_y,
+    display_type: l.display_type ?? "button",
+    image_url: l.image_url,
+    image_height: isCurrentlyEditing
+  ? editingImageHeight
+  : l.image_height,
+    background_color: isCurrentlyEditing
+      ? editingBackgroundColor || null
+      : l.background_color,
+    badge_text: isCurrentlyEditing
+      ? editingBadgeText.trim() || null
+      : l.badge_text,
+    text_color: isCurrentlyEditing
+      ? editingTextColor.trim() || null
+      : l.text_color,
+    hover_effect: isCurrentlyEditing
+      ? editingHoverEffect || null
+      : l.hover_effect,
+  };
+});
+
+const previewProducts = products.map((p) => ({
+  id: p.id,
+  title: p.title,
+  description: p.description,
+  price_cents: p.price_cents,
+  currency: p.currency,
+  cover_image_url: p.cover_image_url,
+}));
+
+  return (
+    <main className="min-h-screen bg-[#0c0d12] px-6 py-10 text-white">
+      <div className="mx-auto w-full max-w-6xl">
+        <header className="flex items-center justify-between">
+          <Link href="/" className="text-3xl font-black tracking-tight">
+            bio<span className="text-[#00d084]">linkr</span>
+          </Link>
+
+          <button
+            onClick={handleLogout}
+            className="rounded-xl border border-white/15 px-4 py-2 text-sm font-bold text-white/80 transition hover:border-[#00d084] hover:text-[#00d084]"
+          >
+            Esci
+          </button>
+        </header>
+
+        <section className="mt-16">
+          <p className="text-sm font-bold tracking-[0.28em] text-[#00d084]">
+            DASHBOARD
+          </p>
+
+          <h1 className="mt-4 text-4xl font-black tracking-tight sm:text-5xl">
+            La tua pagina BioLinkr.
+          </h1>
+
+          <p className="mt-4 text-lg text-white/60">
+            Account: <span className="font-semibold text-white">{email}</span>
+          </p>
+        </section>
+
+        <nav className="sticky top-3 z-30 mt-8 flex gap-2 overflow-x-auto rounded-2xl border border-white/10 bg-[#17181e]/95 p-2 shadow-xl backdrop-blur">
+  {[
+    { id: "links", label: "Links" },
+    { id: "appearance", label: "Aspetto" },
+    { id: "social", label: "Social" },
+    { id: "analytics", label: "Analytics" },
+    { id: "store", label: "Store" },
+  ].map((item) => {
+    const isActive = activeSection === item.id;
+
+    return (
+      <button
+        key={item.id}
+        type="button"
+        onClick={() =>
+          setActiveSection(
+            item.id as "links" | "appearance" | "social" | "analytics" | "store"
+          )
+        }
+        className={`whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-bold transition ${
+          isActive
+            ? "bg-[#00d084] text-[#07100d]"
+            : "text-white/60 hover:bg-white/10 hover:text-white"
+        }`}
+      >
+        {item.label}
+      </button>
+    );
+  })}
+</nav>
+
+        {activeSection === "analytics" && (
+  <section className="mt-12">
+    <div className="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <p className="text-sm font-bold tracking-[0.22em] text-[#00d084]">
+          ANALYTICS
+        </p>
+
+        <h2 className="mt-1 text-2xl font-black">
+          Il tuo funnel
+        </h2>
+
+        <p className="mt-1 text-sm text-white/55">
+          Visite alla pagina → click verso i tuoi link esterni.
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => loadAnalytics(userId, links)}
+        disabled={analyticsLoading}
+        className="rounded-xl border border-white/15 px-4 py-3 text-sm font-bold text-white/75 transition hover:border-[#00d084] hover:text-[#00d084] disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        {analyticsLoading ? "Aggiornamento..." : "Aggiorna dati"}
+      </button>
+    </div>
+
+    <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <article className="rounded-2xl border border-white/10 bg-[#17181e] p-4">
+        <p className="text-sm font-bold text-white/50">
+          Visite totali
+        </p>
+
+        <p className="mt-2 text-3xl font-black text-white">
+          {totalViews}
+        </p>
+
+        <p className="mt-1 text-xs text-white/45">
+          {todayViews} nelle ultime 24 ore
+        </p>
+      </article>
+
+      <article className="rounded-2xl border border-[#00d084]/30 bg-[#00d084]/10 p-4">
+        <p className="text-sm font-bold text-[#00d084]/80">
+          Click social
+        </p>
+
+        <p className="mt-2 text-3xl font-black text-white">
+          {totalSocialClicks}
+        </p>
+
+        <p className="mt-1 text-xs text-white/55">
+          {todaySocialClicks} nelle ultime 24 ore
+        </p>
+      </article>
+
+      <article className="rounded-2xl border border-white/10 bg-[#17181e] p-4">
+        <p className="text-sm font-bold text-white/50">
+          Visite ultimi 7 giorni
+        </p>
+
+        <p className="mt-2 text-3xl font-black text-white">
+          {weekViews}
+        </p>
+
+        <p className="mt-1 text-xs text-white/45">
+          Traffico recente al profilo
+        </p>
+      </article>
+
+      <article className="rounded-2xl border border-white/10 bg-[#17181e] p-4">
+        <p className="text-sm font-bold text-white/50">
+          Click totali
+        </p>
+
+        <p className="mt-2 text-3xl font-black text-white">
+          {totalClicks}
+        </p>
+
+        <p className="mt-1 text-xs text-white/45">
+          {todayClicks} nelle ultime 24 ore
+        </p>
+      </article>
+
+      <article className="rounded-2xl border border-white/10 bg-[#17181e] p-4">
+        <p className="text-sm font-bold text-white/50">
+          Click ultimi 7 giorni
+        </p>
+
+        <p className="mt-2 text-3xl font-black text-white">
+          {weekClicks}
+        </p>
+
+        <p className="mt-1 text-xs text-white/45">
+          Interesse recente verso i link
+        </p>
+      </article>
+
+      <article className="rounded-2xl border border-[#00d084]/30 bg-[#00d084]/10 p-4">
+        <p className="text-sm font-bold text-[#00d084]/80">
+          CTR complessivo
+        </p>
+
+        <p className="mt-2 text-3xl font-black text-white">
+          {totalCtr}%
+        </p>
+
+        <p className="mt-1 text-xs text-white/55">
+          Click esterni ÷ visite profilo
+        </p>
+      </article>
+
+      <article className="rounded-2xl border border-[#00d084]/25 bg-[#17181e] p-4">
+        <p className="text-sm font-bold text-[#00d084]/80">
+          Link migliore
+        </p>
+
+        <p className="mt-2 truncate text-xl font-black text-white">
+          {topLink && topLinkClicks > 0 ? topLink.title : "Nessun dato"}
+        </p>
+
+        <p className="mt-1 text-xs text-white/55">
+          {topLinkClicks > 0
+            ? `${topLinkClicks} click ricevuti`
+            : "Clicca i link per testare"}
+        </p>
+      </article>
+    </div>
+  </section>
+)}
+
+        {(activeSection === "analytics" || activeSection === "social") && (
+  <section className="mt-6 rounded-3xl border border-white/10 bg-[#17181e] p-6 sm:p-8">
+    <div className="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <p className="text-sm font-bold tracking-[0.22em] text-[#00d084]">
+          SOCIAL
+        </p>
+
+        <h2 className="mt-2 text-2xl font-black text-white">
+          Performance social
+        </h2>
+
+        <p className="mt-2 text-sm text-white/55">
+          Scopri quali profili ricevono più click dalla tua pagina BioLinkr.
+        </p>
+      </div>
+
+      <span className="rounded-full border border-[#00d084]/30 bg-[#00d084]/10 px-3 py-2 text-sm font-bold text-[#00d084]">
+        {totalSocialClicks}{" "}
+        {totalSocialClicks === 1 ? "click totale" : "click totali"}
+      </span>
+    </div>
+
+    {totalSocialClicks === 0 ? (
+      <div className="mt-7 rounded-2xl border border-dashed border-white/15 bg-[#0c0d12] px-5 py-8 text-center">
+        <p className="font-bold text-white">
+          Nessun click social ancora
+        </p>
+
+        <p className="mt-2 text-sm text-white/45">
+          Quando qualcuno cliccherà una delle icone social nella tua pagina,
+          qui vedrai la classifica delle piattaforme più visitate.
+        </p>
+      </div>
+    ) : (
+      <div className="mt-7 space-y-4">
+        {Object.entries(socialClicksByPlatform)
+          .sort(([, clicksA], [, clicksB]) => clicksB - clicksA)
+          .map(([platform, clicks]) => {
+            const percentage =
+              totalSocialClicks > 0
+                ? Math.round((clicks / totalSocialClicks) * 100)
+                : 0;
+
+            const platformLabel =
+              platform.charAt(0).toUpperCase() + platform.slice(1);
+
+            return (
+              <div
+                key={platform}
+                className="rounded-2xl border border-white/10 bg-[#0c0d12] p-4"
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <p className="font-bold text-white">
+                    {platformLabel}
+                  </p>
+
+                  <p className="shrink-0 text-sm text-white/55">
+                    <span className="font-black text-white">
+                      {clicks}
+                    </span>{" "}
+                    click · {percentage}%
+                  </p>
+                </div>
+
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full rounded-full bg-[#00d084] transition-all"
+                    style={{ width: `${percentage}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })}
+      </div>
+    )}
+  </section>
+)}
+
+        {activeSection === "analytics" && (
+  <section className="mt-12">
+    <article className="rounded-3xl border border-white/10 bg-[#17181e] p-8 sm:p-10">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-bold tracking-[0.22em] text-[#00d084]">
+            TRAFFICO
+          </p>
+
+          <h2 className="mt-2 text-2xl font-black">
+            Fonti di traffico
+          </h2>
+        </div>
+
+        <span className="rounded-full bg-white/5 px-3 py-1 text-sm text-white/55">
+          {trafficSources.length}
+        </span>
+      </div>
+
+      <p className="mt-3 text-white/55">
+        Da dove arrivano le visite alla tua pagina.
+      </p>
+
+      {trafficSources.length === 0 ? (
+        <p className="mt-8 text-white/45">
+          Non ci sono ancora visite da analizzare.
+        </p>
+      ) : (
+        <div className="mt-8 space-y-4">
+          {trafficSources.map((source) => (
+            <div key={source.label}>
+              <div className="flex items-center justify-between gap-4 text-sm">
+                <p className="truncate font-bold text-white/85">
+                  {source.label}
+                </p>
+
+                <p className="shrink-0 text-white/50">
+                  {source.visits} visite · {source.percentage}%
+                </p>
+              </div>
+
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full bg-[#00d084] transition-all"
+                  style={{ width: `${source.percentage}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </article>
+  </section>
+)}
+
+        {activeSection === "analytics" && abGroups.length > 0 && (
+          <section className="mt-8">
+            <article className="rounded-3xl border border-white/10 bg-[#17181e] p-8 sm:p-10">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-bold tracking-[0.22em] text-[#9d7bff]">
+                    A/B TEST
+                  </p>
+
+                  <h2 className="mt-2 text-2xl font-black">
+                    Risultati dei test
+                  </h2>
+                </div>
+
+                <span className="rounded-full bg-white/5 px-3 py-1 text-sm text-white/55">
+                  {abGroups.length} test
+                </span>
+              </div>
+
+              <p className="mt-3 text-white/55">
+                Confronta le varianti e rendi definitiva quella che performa
+                meglio.
+              </p>
+
+              <div className="mt-8 space-y-8">
+                {abGroups.map((group) => {
+                  if (!group.winner) {
+                    return null;
+                  }
+
+                  return (
+                    <div
+                      key={group.ab_group}
+                      className="rounded-2xl border border-white/10 bg-[#0c0d12] p-6"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-4">
+                        <div>
+                          <p className="font-bold text-white">
+                            Test A/B: {group.links[0].title}
+                          </p>
+                          <p className="mt-1 text-sm text-white/45">
+                            {group.links.length} varianti Â·{" "}
+                            {group.totalClicksInGroup} click totali
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            openConfirmWinnerModal(group, group.winner!)
+                          }
+                          className="rounded-xl border border-[#9d7bff]/40 px-4 py-2 text-sm font-bold text-[#d3b8ff] transition hover:bg-[#9d7bff] hover:text-[#0c0d12]"
+                        >
+                          Rendi definitiva
+                        </button>
+                      </div>
+
+                      <div className="mt-6 space-y-4">
+                        {group.stats.map((stat) => {
+                          const percentage =
+                            group.totalClicksInGroup > 0
+                              ? Math.round(
+                                  (stat.clicks / group.totalClicksInGroup) *
+                                    100
+                                )
+                              : 0;
+
+                          const isWinner =
+                            group.winner &&
+                            stat.link.id === group.winner.link.id;
+
+                          return (
+                            <div key={stat.link.id}>
+                              <div className="flex items-center justify-between gap-4 text-sm">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <p className="truncate font-bold text-white/85">
+                                      {stat.link.title}
+                                    </p>
+
+                                    {isWinner && (
+                                      <span className="rounded-full border border-[#00d084]/30 bg-[#00d084]/15 px-2 py-0.5 text-xs font-bold text-[#00d084]">
+                                        Vincitore
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  <p className="mt-1 truncate text-xs text-white/40">
+                                    {stat.link.url}
+                                  </p>
+                                </div>
+
+                                <p className="shrink-0 text-right text-white/50">
+                                  {stat.clicks} click Â· {percentage}%
+                                </p>
+                              </div>
+
+                              <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
+                                <div
+                                  className={`h-full rounded-full transition-all ${
+                                    isWinner
+                                      ? "bg-[#00d084]"
+                                      : "bg-white/30"
+                                  }`}
+                                  style={{ width: `${percentage}%` }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </article>
+          </section>
+        )}
+
+        {activeSection === "store" && (
+  <section className="mt-12">
+    <article className="rounded-3xl border border-white/10 bg-[#17181e] p-8 sm:p-10">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-bold tracking-[0.22em] text-[#00d084]">
+            STORE
+          </p>
+
+          <h2 className="mt-2 text-2xl font-black">
+            I tuoi prodotti
+          </h2>
+        </div>
+
+        <button
+          type="button"
+          onClick={openNewProductModal}
+          className="rounded-xl bg-[#00d084] px-4 py-3 text-sm font-black text-[#07100d] transition hover:bg-[#19e49b]"
+        >
+          + Nuovo prodotto
+        </button>
+      </div>
+
+      <p className="mt-3 text-white/55">
+        Vendi prodotti digitali direttamente dalla tua pagina BioLinkr.
+      </p>
+
+      {products.length === 0 ? (
+        <p className="mt-8 text-white/45">
+          Non hai ancora creato nessun prodotto.
+        </p>
+      ) : (
+        <div className="mt-8 grid gap-4 sm:grid-cols-2">
+          {products.map((product) => {
+            const orders = ordersByProduct[product.id] ?? [];
+            const totalRevenue = orders.reduce(
+              (sum, o) => sum + o.amount_cents,
+              0
+            );
+
+            return (
+              <div
+                key={product.id}
+                className="rounded-2xl border border-white/10 bg-[#0c0d12] p-6"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-bold text-white">
+                      {product.title}
+                    </p>
+
+                    <p className="mt-1 line-clamp-2 text-sm text-white/55">
+                      {product.description}
+                    </p>
+
+                    <p className="mt-3 text-lg font-black text-[#00d084]">
+                      {formatPrice(product.price_cents, product.currency)}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col items-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openEditProductModal(product)}
+                      className="rounded-lg border border-white/15 px-3 py-2 text-xs font-bold text-white/75 transition hover:border-[#00d084] hover:text-[#00d084]"
+                    >
+                      Modifica
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => deleteProduct(product.id)}
+                      className="rounded-lg border border-red-400/30 px-3 py-2 text-xs font-bold text-red-300 transition hover:bg-red-400 hover:text-[#0c0d12]"
+                    >
+                      Elimina
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-6 grid grid-cols-2 gap-4 border-t border-white/10 pt-4">
+                  <div>
+                    <p className="text-xs font-bold text-white/50">
+                      Vendite
+                    </p>
+                    <p className="mt-1 text-2xl font-black text-white">
+                      {orders.length}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-bold text-white/50">
+                      Ricavo totale
+                    </p>
+                    <p className="mt-1 text-2xl font-black text-white">
+                      {formatPrice(totalRevenue, product.currency)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </article>
+  </section>
+)}
+        
+        <section className="mt-12 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+  <div className="space-y-6">
+    {activeSection === "appearance" && (
+  <form
+    onSubmit={handleSaveProfile}
+    className="overflow-hidden rounded-[28px] border border-white/10 bg-[#12151b] shadow-[0_24px_80px_rgba(0,0,0,0.24)]"
+  >
+    <div className="border-b border-white/10 bg-[#151920] px-5 py-5 sm:px-7">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[#00d084]/25 bg-[#00d084]/10 text-sm text-[#00d084]">
+              ✦
+            </span>
+            <p className="text-[11px] font-black tracking-[0.18em] text-[#00d084]">
+              DESIGN STUDIO
+            </p>
+          </div>
+
+          <h2 className="mt-3 text-xl font-black tracking-tight text-white sm:text-2xl">
+            Crea un look che ti rappresenta.
+          </h2>
+
+          <p className="mt-1 text-sm text-white/50">
+            Personalizza la tua pagina e guarda il risultato in tempo reale.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#00d084]/20 bg-[#00d084]/10 px-3 py-2 text-xs font-bold text-[#7af5bf]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#00d084]" />
+            Pronto a salvare
+          </span>
+
+          <button
+            type="submit"
+            disabled={savingProfile || uploadingAvatar || uploadingBg}
+            className="rounded-xl bg-[#00d084] px-4 py-2.5 text-sm font-black text-[#07100d] transition hover:bg-[#19e49b] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {savingProfile ? "Salvataggio..." : "Salva"}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div className="space-y-7 p-5 sm:p-7">
+      <section>
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <p className="text-sm font-black text-white">Temi</p>
+            <p className="mt-1 text-xs text-white/45">
+              Parti da uno stile, poi personalizzalo.
+            </p>
+          </div>
+
+          <span className="text-[11px] font-bold text-white/35">
+            4 preset
+          </span>
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <button
+            type="button"
+            onClick={() => {
+              setBgColor("#062b24");
+              setButtonStyle("solid");
+            }}
+            className={`group overflow-hidden rounded-2xl border p-2 text-left transition ${
+              bgColor === "#062b24" && buttonStyle === "solid"
+                ? "border-[#00d084] bg-[#00d084]/10 shadow-[0_0_0_3px_rgba(0,208,132,0.10)]"
+                : "border-white/10 bg-[#181d25] hover:border-white/25"
+            }`}
+          >
+            <div className="h-16 rounded-xl bg-[#062b24] p-2">
+              <div className="mx-auto h-4 w-4 rounded-full bg-[#dfffe8]/85" />
+              <div className="mx-auto mt-2 h-2 w-10 rounded-full bg-white/90" />
+              <div className="mx-auto mt-2 h-2 w-12 rounded-full bg-white/90" />
+            </div>
+            <p className="mt-2 text-xs font-black text-white">Midnight</p>
+            <p className="mt-0.5 text-[10px] text-white/45">Scuro · Smeraldo</p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setBgColor("linear-gradient(145deg, #2c135f 0%, #0b766a 100%)");
+              setButtonStyle("glass");
+            }}
+            className={`group overflow-hidden rounded-2xl border p-2 text-left transition ${
+              bgColor.includes("#2c135f") && buttonStyle === "glass"
+                ? "border-[#00d084] bg-[#00d084]/10 shadow-[0_0_0_3px_rgba(0,208,132,0.10)]"
+                : "border-white/10 bg-[#181d25] hover:border-white/25"
+            }`}
+          >
+            <div className="h-16 rounded-xl bg-[linear-gradient(145deg,#2c135f_0%,#0b766a_100%)] p-2">
+              <div className="mx-auto h-4 w-4 rounded-full bg-white/85" />
+              <div className="mx-auto mt-2 h-2 w-10 rounded-full border border-white/60 bg-white/15" />
+              <div className="mx-auto mt-2 h-2 w-12 rounded-full border border-white/60 bg-white/15" />
+            </div>
+            <p className="mt-2 text-xs font-black text-white">Aurora</p>
+            <p className="mt-0.5 text-[10px] text-white/45">Gradiente · Glass</p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setBgColor("#f2efe8");
+              setButtonStyle("outline");
+            }}
+            className={`group overflow-hidden rounded-2xl border p-2 text-left transition ${
+              bgColor === "#f2efe8" && buttonStyle === "outline"
+                ? "border-[#00d084] bg-[#00d084]/10 shadow-[0_0_0_3px_rgba(0,208,132,0.10)]"
+                : "border-white/10 bg-[#181d25] hover:border-white/25"
+            }`}
+          >
+            <div className="h-16 rounded-xl bg-[#f2efe8] p-2">
+              <div className="mx-auto h-4 w-4 rounded-full bg-[#20231f]" />
+              <div className="mx-auto mt-2 h-2 w-10 rounded-full border border-[#20231f]/70" />
+              <div className="mx-auto mt-2 h-2 w-12 rounded-full border border-[#20231f]/70" />
+            </div>
+            <p className="mt-2 text-xs font-black text-white">Studio</p>
+            <p className="mt-0.5 text-[10px] text-white/45">Chiaro · Editoriale</p>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setBgColor("linear-gradient(145deg, #4a1020 0%, #d26537 100%)");
+              setButtonStyle("solid");
+            }}
+            className={`group overflow-hidden rounded-2xl border p-2 text-left transition ${
+              bgColor.includes("#4a1020") && buttonStyle === "solid"
+                ? "border-[#00d084] bg-[#00d084]/10 shadow-[0_0_0_3px_rgba(0,208,132,0.10)]"
+                : "border-white/10 bg-[#181d25] hover:border-white/25"
+            }`}
+          >
+            <div className="h-16 rounded-xl bg-[linear-gradient(145deg,#4a1020_0%,#d26537_100%)] p-2">
+              <div className="mx-auto h-4 w-4 rounded-full bg-[#fff2d9]" />
+              <div className="mx-auto mt-2 h-2 w-10 rounded-full bg-[#fff2d9]" />
+              <div className="mx-auto mt-2 h-2 w-12 rounded-full bg-[#fff2d9]" />
+            </div>
+            <p className="mt-2 text-xs font-black text-white">Sunset</p>
+            <p className="mt-0.5 text-[10px] text-white/45">Caldo · Creativo</p>
+          </button>
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#171b22]">
+  <div className="flex items-center justify-between gap-4 border-b border-white/10 px-4 py-3.5">
+    <div className="flex items-center gap-3">
+      <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-base">
+        ◐
+      </span>
+
+      <div>
+        <h3 className="text-sm font-black text-white">Sfondo</h3>
+        <p className="mt-0.5 text-[11px] text-white/45">
+          Crea l’atmosfera della tua pagina.
+        </p>
+      </div>
+    </div>
+
+    <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[10px] font-bold text-white/50">
+      Live
+    </span>
+  </div>
+
+  <div className="p-4">
+    <div className="grid grid-cols-3 gap-1 rounded-xl bg-[#101318] p-1">
+      <button
+        type="button"
+        onClick={() => setBackgroundMode("color")}
+        className={`rounded-lg px-3 py-2 text-xs font-bold transition ${
+          backgroundMode === "color"
+            ? "bg-[#252c36] text-white shadow-sm"
+            : "text-white/40 hover:text-white/75"
+        }`}
+      >
+        Colore
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setBackgroundMode("gradient")}
+        className={`rounded-lg px-3 py-2 text-xs font-bold transition ${
+          backgroundMode === "gradient"
+            ? "bg-[#252c36] text-white shadow-sm"
+            : "text-white/40 hover:text-white/75"
+        }`}
+      >
+        Gradiente
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setBackgroundMode("image")}
+        className={`rounded-lg px-3 py-2 text-xs font-bold transition ${
+          backgroundMode === "image"
+            ? "bg-[#252c36] text-white shadow-sm"
+            : "text-white/40 hover:text-white/75"
+        }`}
+      >
+        Immagine
+      </button>
+    </div>
+
+    {backgroundMode === "color" && (
+      <div className="mt-4 space-y-4">
+        <div>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-bold text-white/80">
+              Colore base
+            </p>
+
+            <span className="text-[10px] font-medium text-white/35">
+              Personalizzato
+            </span>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {[
+              "#062b24",
+              "#0c0d12",
+              "#1d2540",
+              "#4a1020",
+              "#f2efe8",
+              "#ffffff",
+            ].map((color) => (
+              <button
+                key={color}
+                type="button"
+                onClick={() => setBgColor(color)}
+                aria-label={`Imposta sfondo ${color}`}
+                className={`h-9 w-9 rounded-xl border transition ${
+                  bgColor === color
+                    ? "border-[#00d084] ring-2 ring-[#00d084]/20"
+                    : "border-white/15 hover:scale-105"
+                }`}
+                style={{ backgroundColor: color }}
+              />
+            ))}
+
+            <label className="flex h-9 min-w-[130px] flex-1 items-center gap-2 rounded-xl border border-white/10 bg-[#101318] px-3 focus-within:border-[#00d084]">
+              <span className="h-3 w-3 rounded-full border border-white/30 bg-white/10" />
+              <input
+                type="text"
+                value={bgColor}
+                onChange={(event) => setBgColor(event.target.value)}
+                placeholder="#0c0d12"
+                className="min-w-0 flex-1 bg-transparent text-xs text-white outline-none placeholder:text-white/25"
+              />
+            </label>
+
+            <input
+              type="color"
+              value={
+                bgColor?.startsWith("#") && !bgColor.includes("(")
+                  ? bgColor
+                  : "#0c0d12"
+              }
+              onChange={(event) => setBgColor(event.target.value)}
+              aria-label="Scegli un colore di sfondo"
+              className="h-9 w-10 cursor-pointer rounded-xl border border-white/15 bg-transparent p-1"
+            />
+          </div>
+        </div>
+      </div>
+    )}
+
+    {backgroundMode === "gradient" && (
+      <div className="mt-4 space-y-4">
+        <div>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-bold text-white/80">
+              Combinazioni rapide
+            </p>
+
+            <span className="text-[10px] font-medium text-white/35">
+              Tocca per applicare
+            </span>
+          </div>
+
+          <div className="mt-3 grid grid-cols-4 gap-2">
+            {[
+              {
+                name: "Aurora",
+                start: "#2c135f",
+                end: "#0b766a",
+                angle: "145deg",
+              },
+              {
+                name: "Sunset",
+                start: "#4a1020",
+                end: "#d26537",
+                angle: "145deg",
+              },
+              {
+                name: "Ocean",
+                start: "#09203f",
+                end: "#537895",
+                angle: "135deg",
+              },
+              {
+                name: "Berry",
+                start: "#3b0a45",
+                end: "#d64780",
+                angle: "135deg",
+              },
+            ].map((preset) => {
+              const gradientValue = `linear-gradient(${preset.angle}, ${preset.start} 0%, ${preset.end} 100%)`;
+
+              return (
+                <button
+                  key={preset.name}
+                  type="button"
+                  onClick={() =>
+                    updateGradient(
+                      preset.start,
+                      preset.end,
+                      preset.angle
+                    )
+                  }
+                  className={`overflow-hidden rounded-xl border p-1.5 text-left transition ${
+                    bgColor === gradientValue
+                      ? "border-[#00d084] ring-2 ring-[#00d084]/20"
+                      : "border-white/10 hover:border-white/30"
+                  }`}
+                >
+                  <span
+                    className="block h-9 rounded-lg"
+                    style={{ background: gradientValue }}
+                  />
+                  <span className="mt-1.5 block truncate px-0.5 text-[10px] font-bold text-white/65">
+                    {preset.name}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-white/10 bg-[#101318] p-3">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-bold text-white">
+              Gradiente personalizzato
+            </p>
+
+            <span
+              className="h-7 w-16 rounded-lg border border-white/10"
+              style={{
+                background: `linear-gradient(${gradientAngle}, ${gradientStart} 0%, ${gradientEnd} 100%)`,
+              }}
+            />
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <label className="block">
+              <span className="text-[10px] font-bold text-white/50">
+                Colore iniziale
+              </span>
+
+              <div className="mt-1.5 flex items-center gap-2">
+                <input
+                  type="color"
+                  value={gradientStart}
+                  onChange={(event) =>
+                    updateGradient(event.target.value, gradientEnd)
+                  }
+                  className="h-9 w-10 cursor-pointer rounded-lg border border-white/15 bg-transparent p-1"
+                />
+
+                <input
+                  type="text"
+                  value={gradientStart}
+                  onChange={(event) =>
+                    updateGradient(event.target.value, gradientEnd)
+                  }
+                  className="min-w-0 flex-1 rounded-lg border border-white/10 bg-[#171b22] px-2.5 py-2 text-[11px] text-white outline-none focus:border-[#00d084]"
+                />
+              </div>
+            </label>
+
+            <label className="block">
+              <span className="text-[10px] font-bold text-white/50">
+                Colore finale
+              </span>
+
+              <div className="mt-1.5 flex items-center gap-2">
+                <input
+                  type="color"
+                  value={gradientEnd}
+                  onChange={(event) =>
+                    updateGradient(gradientStart, event.target.value)
+                  }
+                  className="h-9 w-10 cursor-pointer rounded-lg border border-white/15 bg-transparent p-1"
+                />
+
+                <input
+                  type="text"
+                  value={gradientEnd}
+                  onChange={(event) =>
+                    updateGradient(gradientStart, event.target.value)
+                  }
+                  className="min-w-0 flex-1 rounded-lg border border-white/10 bg-[#171b22] px-2.5 py-2 text-[11px] text-white outline-none focus:border-[#00d084]"
+                />
+              </div>
+            </label>
+          </div>
+
+          <div className="mt-4">
+            <p className="text-[10px] font-bold text-white/50">
+              Direzione
+            </p>
+
+            <div className="mt-2 grid grid-cols-4 gap-2">
+              {[
+                { label: "↘", angle: "135deg" },
+                { label: "↓", angle: "180deg" },
+                { label: "↙", angle: "225deg" },
+                { label: "→", angle: "90deg" },
+              ].map((direction) => (
+                <button
+                  key={direction.angle}
+                  type="button"
+                  onClick={() =>
+                    updateGradient(
+                      gradientStart,
+                      gradientEnd,
+                      direction.angle
+                    )
+                  }
+                  className={`rounded-lg border px-2 py-2 text-sm font-black transition ${
+                    gradientAngle === direction.angle
+                      ? "border-[#00d084] bg-[#00d084]/10 text-[#00d084]"
+                      : "border-white/10 bg-[#171b22] text-white/55 hover:border-white/30"
+                  }`}
+                >
+                  {direction.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {backgroundMode === "image" && (
+      <div className="mt-4 rounded-xl border border-white/10 bg-[#101318] p-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-3">
+            {bgImageUrl ? (
+              <img
+                src={bgImageUrl}
+                alt="Anteprima sfondo"
+                className="h-12 w-12 rounded-lg border border-white/15 object-cover"
+              />
+            ) : (
+              <span className="flex h-12 w-12 items-center justify-center rounded-lg border border-dashed border-white/20 text-base text-white/35">
+                ⧉
+              </span>
+            )}
+
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-white">
+                Immagine di sfondo
+              </p>
+
+              <p className="mt-1 truncate text-[10px] text-white/40">
+                JPG, PNG o WEBP · massimo 3 MB
+              </p>
+            </div>
+          </div>
+
+          <label className="cursor-pointer rounded-lg border border-white/15 bg-white/[0.04] px-3 py-2 text-xs font-bold text-white/75 transition hover:border-[#00d084] hover:text-[#00d084]">
+            {uploadingBg ? "Caricamento..." : "Carica"}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handleBgChange}
+              disabled={uploadingBg}
+              className="sr-only"
+            />
+          </label>
+        </div>
+
+        {bgImageUrl && (
+          <button
+            type="button"
+            onClick={() => setBgImageUrl("")}
+            className="mt-3 text-[11px] font-bold text-red-300 transition hover:text-red-200"
+          >
+            Rimuovi immagine
+          </button>
+        )}
+      </div>
+    )}
+  </div>
+</section>
+
+      <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#171b22]">
+        <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3.5">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-base">
+            ▭
+          </span>
+          <div>
+            <h3 className="text-sm font-black text-white">Bottoni</h3>
+            <p className="mt-0.5 text-[11px] text-white/45">
+              Scegli come appaiono i tuoi link.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2 p-4">
+          {[
+            {
+              value: "solid",
+              label: "Pieno",
+              preview:
+                "bg-white text-[#111318] shadow-[0_6px_14px_rgba(0,0,0,0.2)]",
+            },
+            {
+              value: "outline",
+              label: "Outline",
+              preview: "border border-white/80 text-white",
+            },
+            {
+              value: "glass",
+              label: "Glass",
+              preview:
+                "border border-white/30 bg-white/10 text-white backdrop-blur",
+            },
+          ].map((style) => (
+            <button
+              key={style.value}
+              type="button"
+              onClick={() => setButtonStyle(style.value)}
+              className={`rounded-xl border p-2.5 text-center transition ${
+                buttonStyle === style.value
+                  ? "border-[#00d084] bg-[#00d084]/10 shadow-[0_0_0_3px_rgba(0,208,132,0.08)]"
+                  : "border-white/10 bg-[#101318] hover:border-white/25"
+              }`}
+            >
+              <span
+                className={`flex h-8 items-center justify-center rounded-lg text-[10px] font-black ${style.preview}`}
+              >
+                Link
+              </span>
+              <span className="mt-2 block text-[11px] font-bold text-white/75">
+                {style.label}
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#171b22]">
+        <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3.5">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-base">
+            Aa
+          </span>
+          <div>
+            <h3 className="text-sm font-black text-white">Testo</h3>
+            <p className="mt-0.5 text-[11px] text-white/45">
+              Mantieni nome e messaggio chiari.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid gap-3 p-4 sm:grid-cols-2">
+          <label className="block">
+            <span className="text-xs font-bold text-white/80">Nome visibile</span>
+            <input
+              type="text"
+              value={displayName}
+              onChange={(event) => setDisplayName(event.target.value)}
+              placeholder="Il tuo nome o brand"
+              minLength={1}
+              maxLength={80}
+              required
+              className="mt-2 w-full rounded-xl border border-white/10 bg-[#101318] px-3.5 py-3 text-sm text-white outline-none placeholder:text-white/25 transition focus:border-[#00d084]"
+            />
+          </label>
+
+          <label className="block">
+            <span className="text-xs font-bold text-white/80">Username</span>
+            <div className="mt-2 flex overflow-hidden rounded-xl border border-white/10 bg-[#101318] focus-within:border-[#00d084]">
+              <span className="flex items-center border-r border-white/10 px-3 text-sm text-white/35">
+                /
+              </span>
+              <input
+                type="text"
+                value={username}
+                onChange={(event) => setUsername(event.target.value)}
+                placeholder="tuo_username"
+                minLength={3}
+                maxLength={30}
+                required
+                className="min-w-0 flex-1 bg-transparent px-3 py-3 text-sm text-white outline-none placeholder:text-white/25"
+              />
+            </div>
+          </label>
+
+          <label className="block sm:col-span-2">
+            <span className="flex items-center justify-between gap-3 text-xs font-bold text-white/80">
+              Bio
+              <span className="font-medium text-white/35">{bio.length}/160</span>
+            </span>
+            <textarea
+              value={bio}
+              onChange={(event) => setBio(event.target.value)}
+              placeholder="Racconta brevemente chi sei."
+              maxLength={160}
+              rows={3}
+              className="mt-2 w-full resize-none rounded-xl border border-white/10 bg-[#101318] px-3.5 py-3 text-sm text-white outline-none placeholder:text-white/25 transition focus:border-[#00d084]"
+            />
+          </label>
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-white/10 bg-[#171b22]">
+        <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3.5">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-base">
+            ◉
+          </span>
+          <div>
+            <h3 className="text-sm font-black text-white">Profilo</h3>
+            <p className="mt-0.5 text-[11px] text-white/45">
+              La prima impressione della tua pagina.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-4 p-4">
+          <div className="flex min-w-0 items-center gap-3">
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt="Foto profilo"
+                className="h-14 w-14 rounded-2xl border border-white/15 object-cover"
+              />
+            ) : (
+              <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#00d084] text-lg font-black text-[#07100d]">
+                {displayName ? displayName.charAt(0).toUpperCase() : "B"}
+              </span>
+            )}
+
+            <div className="min-w-0">
+              <p className="truncate text-sm font-black text-white">
+                {displayName || "Il tuo nome"}
+              </p>
+              <p className="mt-0.5 truncate text-xs text-white/45">
+                /{username || "tuo_username"}
+              </p>
+            </div>
+          </div>
+
+          <label className="cursor-pointer rounded-xl border border-white/15 bg-white/[0.04] px-3.5 py-2.5 text-xs font-bold text-white/75 transition hover:border-[#00d084] hover:text-[#00d084]">
+            {uploadingAvatar ? "Caricamento..." : "Cambia foto"}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handleAvatarChange}
+              disabled={uploadingAvatar}
+              className="sr-only"
+            />
+          </label>
+        </div>
+      </section>
+
+      <div className="flex flex-col gap-3 border-t border-white/10 pt-5 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs text-white/40">
+          Le modifiche diventano pubbliche dopo il salvataggio.
+        </p>
+
+        <button
+          type="submit"
+          disabled={savingProfile || uploadingAvatar || uploadingBg}
+          className="w-full rounded-xl bg-[#00d084] px-5 py-3 text-sm font-black text-[#07100d] transition hover:bg-[#19e49b] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+        >
+          {savingProfile ? "Salvataggio..." : "Salva modifiche"}
+        </button>
+      </div>
+    </div>
+  </form>
+)}
+
+    {activeSection === "social" && (
+      <section className="rounded-3xl border border-white/10 bg-[#17181e] p-6 sm:p-8">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-bold tracking-[0.22em] text-[#00d084]">
+              SOCIAL
+            </p>
+
+            <h2 className="mt-2 text-2xl font-black text-white">
+              I tuoi social
+            </h2>
+
+            <p className="mt-2 text-sm text-white/55">
+              Inserisci gli URL dei profili che vuoi mostrare nella tua pagina.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span className="rounded-full border border-[#00d084]/30 bg-[#00d084]/10 px-3 py-2 text-xs font-black text-[#00d084]">
+              {socialLinks.filter((s) => s.url.trim()).length}{" "}
+              {socialLinks.filter((s) => s.url.trim()).length === 1
+                ? "profilo"
+                : "profili"}{" "}
+              collegati
+            </span>
+
+            <button
+              type="button"
+              onClick={() => setSocialEditorOpen((open) => !open)}
+              className="rounded-xl bg-[#00d084] px-4 py-3 text-sm font-black text-[#07100d] transition hover:bg-[#19e49b]"
+            >
+              {socialEditorOpen ? "Chiudi social" : "Modifica social"}
+            </button>
+          </div>
+        </div>
+
+        {socialEditorOpen && (
+          <div className="mt-6 space-y-5">
+            {[
+              {
+                platform: "instagram" as SocialPlatform,
+                label: "Instagram",
+                placeholder: "https://instagram.com/tuo_username",
+              },
+              {
+                platform: "tiktok" as SocialPlatform,
+                label: "TikTok",
+                placeholder: "https://tiktok.com/@tuo_username",
+              },
+              {
+                platform: "youtube" as SocialPlatform,
+                label: "YouTube",
+                placeholder: "https://youtube.com/@tuo_canale",
+              },
+              {
+                platform: "x" as SocialPlatform,
+                label: "X / Twitter",
+                placeholder: "https://x.com/tuo_username",
+              },
+              {
+                platform: "facebook" as SocialPlatform,
+                label: "Facebook",
+                placeholder: "https://facebook.com/tuo_username",
+              },
+              {
+                platform: "linkedin" as SocialPlatform,
+                label: "LinkedIn",
+                placeholder: "https://linkedin.com/in/tuo_username",
+              },
+              {
+                platform: "telegram" as SocialPlatform,
+                label: "Telegram",
+                placeholder: "https://t.me/tuo_username",
+              },
+              {
+                platform: "whatsapp" as SocialPlatform,
+                label: "WhatsApp",
+                placeholder: "https://wa.me/391234567890",
+              },
+              {
+                platform: "twitch" as SocialPlatform,
+                label: "Twitch",
+                placeholder: "https://twitch.tv/tuo_canale",
+              },
+              {
+                platform: "kick" as SocialPlatform,
+                label: "Kick",
+                placeholder: "https://kick.com/tuo_canale",
+              },
+              {
+                platform: "discord" as SocialPlatform,
+                label: "Discord",
+                placeholder: "https://discord.gg/tuo-invito",
+              },
+              {
+                platform: "spotify" as SocialPlatform,
+                label: "Spotify",
+                placeholder: "https://open.spotify.com/artist/...",
+              },
+              {
+                platform: "patreon" as SocialPlatform,
+                label: "Patreon",
+                placeholder: "https://patreon.com/tuo_username",
+              },
+              {
+                platform: "onlyfans" as SocialPlatform,
+                label: "OnlyFans",
+                placeholder: "https://onlyfans.com/tuo_username",
+              },
+              {
+                platform: "fansly" as SocialPlatform,
+                label: "Fansly",
+                placeholder: "https://fansly.com/tuo_username",
+              },
+            ].map((social) => {
+              const currentSocial = socialLinks.find(
+                (item) => item.platform === social.platform
+              );
+
+              return (
+                <label
+                  key={social.platform}
+                  className="block text-sm font-bold text-white/90"
+                >
+                  {social.label}
+
+                  <input
+                    type="url"
+                    value={currentSocial?.url ?? ""}
+                    onChange={(event) => {
+                      const url = event.target.value;
+
+                      setSocialLinks((current) => {
+                        const existing = current.find(
+                          (item) => item.platform === social.platform
+                        );
+
+                        if (existing) {
+                          return current.map((item) =>
+                            item.platform === social.platform
+                              ? { ...item, url }
+                              : item
+                          );
+                        }
+
+                        return [
+                          ...current,
+                          {
+                            id: `new-${social.platform}`,
+                            profile_id: userId,
+                            platform: social.platform,
+                            url,
+                            position: current.length,
+                          },
+                        ];
+                      });
+                    }}
+                    placeholder={social.placeholder}
+                    className="mt-2 w-full rounded-xl border border-white/15 bg-[#0c0d12] px-4 py-3 text-white outline-none placeholder:text-white/25 focus:border-[#00d084]"
+                  />
+                </label>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="mt-7 border-t border-white/10 pt-5">
+          <p className="text-xs font-bold tracking-[0.16em] text-white/45">
+            ANTEPRIMA
+          </p>
+
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleSocialDragEnd}
+          >
+            <SortableContext
+              items={socialLinks.map((socialLink) => socialLink.id)}
+              strategy={horizontalListSortingStrategy}
+            >
+              <div className="mt-3 flex flex-wrap gap-2">
+                {socialLinks
+                  .filter((s) => s.url.trim())
+                  .map((socialLink) => (
+                    <SortableSocialPreviewIcon
+                      key={socialLink.id}
+                      socialLink={socialLink}
+                    />
+                  ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        </div>
+
+        <div className="mt-6 rounded-2xl border border-white/10 bg-[#17181e] p-5">
+          <div>
+            <p className="text-sm font-bold text-white">
+              Posizione delle icone social
+            </p>
+
+            <p className="mt-1 text-sm text-white/45">
+              Scegli dove mostrare i social nella tua pagina pubblica.
+            </p>
+          </div>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => setSocialPosition("below_profile")}
+              className={`rounded-xl border p-4 text-left transition ${
+                socialPosition === "below_profile"
+                  ? "border-[#00d084] bg-[#00d084]/10"
+                  : "border-white/10 bg-[#0c0d12] hover:border-white/30"
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <span
+                  className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+                    socialPosition === "below_profile"
+                      ? "border-[#00d084] bg-[#00d084]"
+                      : "border-white/30"
+                  }`}
+                >
+                  {socialPosition === "below_profile" && (
+                    <span className="h-2 w-2 rounded-full bg-[#07100d]" />
+                  )}
+                </span>
+
+                <div>
+                  <p className="font-bold text-white">
+                    Sotto nome, username e bio
+                  </p>
+
+                  <p className="mt-1 text-xs text-white/45">
+                    Le icone appariranno subito sotto la descrizione del profilo.
+                  </p>
+                </div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSocialPosition("footer")}
+              className={`rounded-xl border p-4 text-left transition ${
+                socialPosition === "footer"
+                  ? "border-[#00d084] bg-[#00d084]/10"
+                  : "border-white/10 bg-[#0c0d12] hover:border-white/30"
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <span
+                  className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border ${
+                    socialPosition === "footer"
+                      ? "border-[#00d084] bg-[#00d084]"
+                      : "border-white/30"
+                  }`}
+                >
+                  {socialPosition === "footer" && (
+                    <span className="h-2 w-2 rounded-full bg-[#07100d]" />
+                  )}
+                </span>
+
+                <div>
+                  <p className="font-bold text-white">
+                    Nel footer
+                  </p>
+
+                  <p className="mt-1 text-xs text-white/45">
+                    Le icone appariranno in fondo alla pagina, sopra “Creato con bioLinkr”.
+                  </p>
+                </div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSaveSocialSettings}
+              disabled={savingSocials}
+              className="mt-6 w-full rounded-xl bg-[#00d084] px-5 py-4 text-base font-black text-[#07100d] transition hover:bg-[#19e49b] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {savingSocials ? "Salvataggio..." : "Salva modifiche"}
+            </button>
+          </div>
+
+          <p className="mt-4 text-xs text-white/40">
+            La modifica diventa effettiva sulla pagina pubblica dopo aver premuto
+            “Salva profilo”.
+          </p>
+        </div>
+      </section>
+    )}
+
+    <form
+      onSubmit={handleAddLink}
+      className="rounded-3xl border border-white/10 bg-[#17181e] p-8 sm:p-10"
+    >
+      <h2 className="text-2xl font-black">Aggiungi un link</h2>
+
+      <p className="mt-3 text-white/60">
+        Inserisci un link e programmalo solo quando ne hai bisogno.
+      </p>
+
+      <div className="mt-6 rounded-2xl border border-white/10 bg-[#0c0d12] p-4">
+        <p className="text-sm font-bold text-white">Tipo di link</p>
+
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setNewLinkDisplayType("button")}
+            className={`rounded-xl px-4 py-3 text-sm font-bold transition ${
+              newLinkDisplayType === "button"
+                ? "bg-[#00d084] text-[#07100d]"
+                : "border border-white/15 text-white/65 hover:border-[#00d084] hover:text-[#00d084]"
+            }`}
+          >
+            Pulsante
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setNewLinkDisplayType("image")}
+            className={`rounded-xl px-4 py-3 text-sm font-bold transition ${
+              newLinkDisplayType === "image"
+                ? "bg-[#00d084] text-[#07100d]"
+                : "border border-white/15 text-white/65 hover:border-[#00d084] hover:text-[#00d084]"
+            }`}
+          >
+            Immagine
+          </button>
+        </div>
+
+        <p className="mt-3 text-xs text-white/45">
+          Un pulsante mostra un titolo. Un link immagine mostra un banner cliccabile.
+        </p>
+      </div>
+
+      <div className="mt-8 space-y-6">
+        <label className="block text-sm font-bold text-white/90">
+          {newLinkDisplayType === "image"
+            ? "Descrizione immagine (opzionale)"
+            : "Titolo del pulsante"}
+
+          <input
+            type="text"
+            value={linkTitle}
+            onChange={(event) => setLinkTitle(event.target.value)}
+            placeholder={
+              newLinkDisplayType === "image"
+                ? "Es. Vai al mio shop"
+                : "Instagram"
+            }
+            minLength={newLinkDisplayType === "button" ? 1 : undefined}
+            maxLength={80}
+            required={newLinkDisplayType === "button"}
+            className="mt-2 w-full rounded-xl border border-white/20 bg-[#0c0d12] px-4 py-4 text-white outline-none transition placeholder:text-white/25 focus:border-[#00d084]"
+          />
+
+          {newLinkDisplayType === "image" && (
+            <span className="mt-2 block font-normal text-white/45">
+              Non verrà mostrata sul banner, ma aiuta accessibilità e lettori di schermo.
+            </span>
+          )}
+        </label>
+
+        <label className="block text-sm font-bold text-white/90">
+          URL
+          <input
+            type="url"
+            value={linkUrl}
+            onChange={(event) => setLinkUrl(event.target.value)}
+            placeholder="https://instagram.com/tuo_username"
+            required
+            className="mt-2 w-full rounded-xl border border-white/20 bg-[#0c0d12] px-4 py-4 text-white outline-none transition placeholder:text-white/25 focus:border-[#00d084]"
+          />
+        </label>
+
+        {newLinkDisplayType === "image" && (
+          <div className="rounded-2xl border border-white/10 bg-[#0c0d12] p-4">
+            <p className="text-sm font-bold text-white">Immagine cliccabile</p>
+
+            <p className="mt-1 text-sm text-white/45">
+              Carica un banner, un logo o una creatività da usare al posto del titolo.
+            </p>
+
+            <div className="mt-4 flex items-center gap-4">
+              {newLinkImagePreview ? (
+                <img
+                  src={newLinkImagePreview}
+                  alt="Anteprima immagine link"
+                  className="h-20 w-28 rounded-xl border border-white/15 object-contain"
+                />
+              ) : (
+                <div className="flex h-20 w-28 items-center justify-center rounded-xl border border-dashed border-white/20 text-sm text-white/40">
+                  Banner
+                </div>
+              )}
+
+              <div className="min-w-0 flex-1">
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleNewLinkImageChange}
+                  className="block w-full cursor-pointer text-sm text-white/65 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:font-bold file:text-white file:transition hover:file:bg-[#00d084] hover:file:text-[#07100d]"
+                />
+
+                <p className="mt-2 text-xs text-yellow-300">
+                  File selezionato: {newLinkImageFile ? newLinkImageFile.name : "nessuno"}
+                </p>
+
+                <p className="mt-2 text-xs text-white/45">
+                  JPG, PNG o WEBP · massimo 3 MB
+                </p>
+
+                {newLinkImageFile && (
+                  <p className="mt-2 truncate text-xs text-[#00d084]">
+                    Pronta: {newLinkImageFile.name}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="rounded-2xl border border-white/10 bg-[#0c0d12] p-4">
+          <p className="text-sm font-bold text-white">Icona del link</p>
+
+          <p className="mt-1 text-sm text-white/45">
+            Carica un’icona opzionale per rendere il pulsante più riconoscibile.
+          </p>
+
+          <div className="mt-4 flex items-center gap-3">
+            {newLinkIconFile ? (
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-[#00d084]/30 bg-[#00d084]/10 text-lg text-[#00d084]">
+                ✓
+              </div>
+            ) : (
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-dashed border-white/20 text-sm text-white/40">
+                +
+              </div>
+            )}
+
+            <div className="min-w-0 flex-1">
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleNewLinkIconChange}
+                className="block w-full cursor-pointer text-sm text-white/65 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:font-bold file:text-white file:transition hover:file:bg-[#00d084] hover:file:text-[#07100d]"
+              />
+
+              <p className="mt-2 text-xs text-white/45">
+                JPG, PNG o WEBP · massimo 1 MB
+              </p>
+
+              {newLinkIconFile && (
+                <p className="mt-2 truncate text-xs text-[#00d084]">
+                  Pronta: {newLinkIconFile.name}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-[#0c0d12] p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-bold text-white">Programmazione</p>
+              <p className="mt-1 text-sm text-white/45">
+                Il link è visibile subito finché non lo programmi.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                handleNewScheduleToggle(!linkScheduleEnabled)
+              }
+              className={`rounded-full px-4 py-2 text-sm font-bold transition ${
+                linkScheduleEnabled
+                  ? "bg-[#00d084] text-[#07100d]"
+                  : "bg-white/10 text-white/70 hover:bg-white/15"
+              }`}
+            >
+              {linkScheduleEnabled ? "Programmato" : "Sempre attivo"}
+            </button>
+          </div>
+
+          {linkScheduleEnabled && (
+            <div className="mt-5 space-y-4 border-t border-white/10 pt-5">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => applyQuickSchedule("hour", "new")}
+                  className="rounded-lg border border-white/15 px-3 py-2 text-sm font-bold text-white/70 transition hover:border-[#00d084] hover:text-[#00d084]"
+                >
+                  +1 ora
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => applyQuickSchedule("tonight", "new")}
+                  className="rounded-lg border border-white/15 px-3 py-2 text-sm font-bold text-white/70 transition hover:border-[#00d084] hover:text-[#00d084]"
+                >
+                  Stasera
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => applyQuickSchedule("tomorrow", "new")}
+                  className="rounded-lg border border-white/15 px-3 py-2 text-sm font-bold text-white/70 transition hover:border-[#00d084] hover:text-[#00d084]"
+                >
+                  Domani
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => applyQuickSchedule("week", "new")}
+                  className="rounded-lg border border-white/15 px-3 py-2 text-sm font-bold text-white/70 transition hover:border-[#00d084] hover:text-[#00d084]"
+                >
+                  7 giorni
+                </button>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="block text-sm font-bold text-white/75">
+                  Pubblica da
+                  <input
+                    type="datetime-local"
+                    value={linkStartsAt}
+                    onChange={(event) =>
+                      setLinkStartsAt(event.target.value)
+                    }
+                    className="mt-2 w-full rounded-xl border border-white/20 bg-[#17181e] px-4 py-3 text-white outline-none transition focus:border-[#00d084]"
+                  />
+                </label>
+
+                <label className="block text-sm font-bold text-white/75">
+                  Nascondi dopo
+                  <input
+                    type="datetime-local"
+                    value={linkEndsAt}
+                    onChange={(event) =>
+                      setLinkEndsAt(event.target.value)
+                    }
+                    className="mt-2 w-full rounded-xl border border-white/20 bg-[#17181e] px-4 py-3 text-white outline-none transition focus:border-[#00d084]"
+                  />
+                </label>
+              </div>
+
+              <p className="text-xs text-white/45">
+                Lascia “Pubblica da” vuoto per renderlo visibile subito.
+                Lascia “Nascondi dopo” vuoto per evitare una scadenza.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <button
+        type="submit"
+        disabled={savingLink}
+        className="mt-8 w-full rounded-xl bg-[#00d084] px-5 py-4 text-lg font-black text-[#07100d] transition hover:bg-[#19e49b] disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {savingLink ? "Aggiunta..." : "Aggiungi link"}
+      </button>
+    </form>
+
+    <section className="rounded-3xl border border-white/10 bg-[#17181e] p-8 sm:p-10">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-black">I tuoi link</h2>
+          <p className="mt-2 text-sm text-white/50">
+            Trascina l'icona ⋮⋮ per cambiare l'ordine dei pulsanti.
+          </p>
+        </div>
+
+        <span className="rounded-full bg-white/5 px-3 py-1 text-sm text-white/55">
+          {links.length}
+        </span>
+      </div>
+
+      {links.length === 0 ? (
+        <p className="mt-6 text-white/55">
+          Non hai ancora aggiunto nessun link.
+        </p>
+      ) : (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={links.map((link) => link.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div
+              className={`mt-6 space-y-3 ${
+                reordering ? "pointer-events-none opacity-70" : ""
+              }`}
+            >
+              {links.map((link) => (
+                <SortableLinkItem
+                  key={link.id}
+                  link={link}
+                  variants={getVariantsForLink(link)}
+                  isEditing={editingLinkId === link.id}
+                  editingTitle={editingTitle}
+                  editingUrl={editingUrl}
+                  editingIconUrl={editingIconUrl}
+                  editingIconSize={editingIconSize}
+                  editingIconPositionX={editingIconPositionX}
+                  editingIconPositionY={editingIconPositionY}
+                  editingImageHeight={editingImageHeight}
+                  editingBackgroundColor={editingBackgroundColor}
+                  editingBadgeText={editingBadgeText}
+                  editingTextColor={editingTextColor}
+                  editingHoverEffect={editingHoverEffect}
+                  editingScheduleEnabled={editingScheduleEnabled}
+                  editingStartsAt={editingStartsAt}
+                  editingEndsAt={editingEndsAt}
+                  savingEdit={savingEdit}
+                  deleting={deletingLinkId === link.id}
+                  uploadingIcon={uploadingLinkIcon}
+                  onIconFileChange={handleLinkIconChange}
+                  onEdit={startEditingLink}
+                  onTitleChange={setEditingTitle}
+                  onUrlChange={setEditingUrl}
+                  onIconUrlChange={setEditingIconUrl}
+                  onIconSizeChange={setEditingIconSize}
+                  onIconPositionXChange={setEditingIconPositionX}
+                  onIconPositionYChange={setEditingIconPositionY}
+                  onImageHeightChange={setEditingImageHeight}
+                  onBackgroundColorChange={setEditingBackgroundColor}
+                  onBadgeTextChange={setEditingBadgeText}
+                  onTextColorChange={setEditingTextColor}
+                  onHoverEffectChange={setEditingHoverEffect}
+                  onScheduleEnabledChange={handleEditingScheduleToggle}
+                  onStartsAtChange={setEditingStartsAt}
+                  onEndsAtChange={setEditingEndsAt}
+                  onQuickSchedule={applyQuickSchedule}
+                  onSave={handleSaveLinkEdit}
+                  onCancel={cancelEditingLink}
+                  onDelete={handleDeleteLink}
+                  onAddVariant={openAddVariantModal}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+      )}
+
+      {links.length > 0 && (
+        <div className="mt-8 border-t border-white/10 pt-6">
+          <h3 className="text-lg font-black">Click per link</h3>
+
+          <div className="mt-4 space-y-3">
+            {links.map((link) => {
+              const clicks = clicksByLink[link.id] ?? 0;
+              const percentage =
+                totalClicks > 0
+                  ? Math.round((clicks / totalClicks) * 100)
+                  : 0;
+
+              return (
+                <div key={link.id}>
+                  <div className="flex items-center justify-between gap-4 text-sm">
+                    <p className="truncate font-bold text-white/80">
+                      {link.title}
+                    </p>
+
+                    <p className="shrink-0 text-white/50">
+                      {clicks} click
+                    </p>
+                  </div>
+
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
+                    <div
+                      className="h-full rounded-full bg-[#00d084] transition-all"
+                      style={{ width: `${percentage}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </section>
+  </div>
+
+  {(activeSection === "links" || activeSection === "appearance") && (
+    <aside className="h-fit space-y-4 lg:sticky lg:top-8">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-bold tracking-[0.22em] text-[#00d084]">
+          ANTEPRIMA
+        </p>
+
+        <div className="flex items-center gap-2 rounded-full border border-white/15 bg-[#17181e] p-1">
+          <button
+            type="button"
+            onClick={() => setPreviewMode("mobile")}
+            className={`rounded-full px-3 py-1 text-xs font-bold transition ${
+              previewMode === "mobile"
+                ? "bg-[#00d084] text-[#07100d]"
+                : "text-white/60 hover:text-white"
+            }`}
+          >
+            Mobile
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setPreviewMode("desktop")}
+            className={`rounded-full px-3 py-1 text-xs font-bold transition ${
+              previewMode === "desktop"
+                ? "bg-[#00d084] text-[#07100d]"
+                : "text-white/60 hover:text-white"
+            }`}
+          >
+            Desktop
+          </button>
+        </div>
+      </div>
+
+      <div
+  className={`mx-auto w-full transition-all duration-300 ${
+    previewMode === "mobile"
+      ? "max-w-[390px]"
+      : "max-w-[760px]"
+  }`}
+>
+  <div
+    className={`overflow-hidden transition-all duration-300 ${
+      previewMode === "mobile"
+        ? "rounded-[32px] border-[8px] border-[#080a0d] shadow-[0_24px_70px_rgba(0,0,0,0.45)]"
+        : "rounded-[24px] border border-white/10 shadow-[0_18px_50px_rgba(0,0,0,0.28)]"
+    }`}
+  >
+    <div className="sticky top-6 mx-auto w-full max-w-[390px]">
+  <div className="mb-4 flex items-center justify-between px-1">
+    <div>
+      <p className="text-xs font-black uppercase tracking-[0.18em] text-white/45">
+        Anteprima live
+      </p>
+      <p className="mt-1 text-sm font-bold text-white">
+        La tua pagina su mobile
+      </p>
+    </div>
+
+    <div className="flex rounded-xl border border-white/10 bg-white/5 p-1">
+      <button
+        type="button"
+        onClick={() => setPreviewMode("mobile")}
+        className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+          previewMode === "mobile"
+            ? "bg-[#00d084] text-[#07100d]"
+            : "text-white/55 hover:text-white"
+        }`}
+      >
+        Mobile
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setPreviewMode("desktop")}
+        className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${
+          previewMode === "desktop"
+            ? "bg-[#00d084] text-[#07100d]"
+            : "text-white/55 hover:text-white"
+        }`}
+      >
+        Desktop
+      </button>
+    </div>
+  </div>
+
+  {previewMode === "mobile" ? (
+    <div className="relative mx-auto w-[360px] rounded-[52px] bg-[#0a0a0b] p-[10px] shadow-[0_30px_80px_rgba(0,0,0,0.55)] ring-1 ring-white/15">
+      <div className="absolute left-1/2 top-[16px] z-20 h-[30px] w-[116px] -translate-x-1/2 rounded-full bg-black shadow-[0_1px_1px_rgba(255,255,255,0.08)]">
+        <span className="absolute right-3 top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-[#111827] ring-1 ring-white/10" />
+      </div>
+
+      <div className="relative h-[720px] overflow-hidden rounded-[43px] bg-[#0c0d12]">
+        <div className="h-full overflow-y-auto scrollbar-hide">
+          <ProfilePreview
+            displayName={displayName}
+            username={username.trim().toLowerCase()}
+            bio={bio}
+            avatarUrl={avatarUrl}
+            bgColor={bgColor}
+            bgImageUrl={bgImageUrl}
+            buttonStyle={buttonStyle as "solid" | "outline" | "glass"}
+            links={previewLinks}
+            products={previewProducts}
+            socialLinks={socialLinks}
+            socialPosition={socialPosition}
+            onSocialLinksReorder={async (reorderedSocialLinks) => {
+              const nextSocialLinks = reorderedSocialLinks.map(
+                (socialLink) =>
+                  ({
+                    ...socialLink,
+                    profile_id: userId,
+                    platform: socialLink.platform as SocialPlatform,
+                  }) as SocialLinkRow
+              );
+
+              const previousSocialLinks = socialLinks;
+
+              setSocialLinks(nextSocialLinks);
+              setSavingSocials(true);
+              setMessage("");
+
+              const error = await saveSocialLinksOrder(nextSocialLinks);
+
+              setSavingSocials(false);
+
+              if (error) {
+                setSocialLinks(previousSocialLinks);
+                setMessage(
+                  `Non è stato possibile salvare l'ordine dei social: ${error.message}`
+                );
+                return;
+              }
+
+              setMessage("Ordine delle icone social salvato.");
+            }}
+          />
+        </div>
+
+        <div className="pointer-events-none absolute bottom-2 left-1/2 z-30 h-1.5 w-[126px] -translate-x-1/2 rounded-full bg-white/80 shadow-[0_1px_5px_rgba(0,0,0,0.4)]" />
+      </div>
+    </div>
+  ) : (
+    <div className="overflow-hidden rounded-3xl border border-white/10 bg-[#0c0d12] shadow-[0_24px_70px_rgba(0,0,0,0.38)]">
+      <div className="flex items-center gap-1.5 border-b border-white/10 bg-white/[0.04] px-4 py-3">
+        <span className="h-2.5 w-2.5 rounded-full bg-red-400/80" />
+        <span className="h-2.5 w-2.5 rounded-full bg-amber-300/80" />
+        <span className="h-2.5 w-2.5 rounded-full bg-[#00d084]/80" />
+        <span className="ml-3 truncate rounded-md bg-black/20 px-3 py-1 text-[10px] font-medium text-white/40">
+          biolinkr.app/{username.trim().toLowerCase() || "tuo_username"}
+        </span>
+      </div>
+
+      <div className="max-h-[720px] overflow-y-auto">
+        <ProfilePreview
+          displayName={displayName}
+          username={username.trim().toLowerCase()}
+          bio={bio}
+          avatarUrl={avatarUrl}
+          bgColor={bgColor}
+          bgImageUrl={bgImageUrl}
+          buttonStyle={buttonStyle as "solid" | "outline" | "glass"}
+          links={previewLinks}
+          products={previewProducts}
+          socialLinks={socialLinks}
+          socialPosition={socialPosition}
+          onSocialLinksReorder={async (reorderedSocialLinks) => {
+            const nextSocialLinks = reorderedSocialLinks.map(
+              (socialLink) =>
+                ({
+                  ...socialLink,
+                  profile_id: userId,
+                  platform: socialLink.platform as SocialPlatform,
+                }) as SocialLinkRow
+            );
+
+            const previousSocialLinks = socialLinks;
+
+            setSocialLinks(nextSocialLinks);
+            setSavingSocials(true);
+            setMessage("");
+
+            const error = await saveSocialLinksOrder(nextSocialLinks);
+
+            setSavingSocials(false);
+
+            if (error) {
+              setSocialLinks(previousSocialLinks);
+              setMessage(
+                `Non è stato possibile salvare l'ordine dei social: ${error.message}`
+              );
+              return;
+            }
+
+            setMessage("Ordine delle icone social salvato.");
+          }}
+        />
+      </div>
+    </div>
+  )}
+</div>
+  </div>
+</div>
+
+      {publicProfileUrl && (
+        <Link
+          href={publicProfileUrl}
+          className="inline-flex w-full items-center justify-center rounded-xl border border-[#00d084]/60 px-4 py-3 font-bold text-[#00d084] transition hover:bg-[#00d084] hover:text-[#00d084]"
+        >
+          Apri la pagina pubblica
+        </Link>
+      )}
+
+      {message && (
+        <p className="text-center text-sm text-white/70">{message}</p>
+      )}
+    </aside>
+  )}
+</section>
+      </div>
+
+      <AddVariantModal
+        originalLink={
+          links.find((l) => l.id === addingVariantLinkId) ??
+          ({
+            id: "",
+            profile_id: "",
+            title: "",
+            url: "",
+            position: 0,
+            starts_at: null,
+            ends_at: null,
+            ab_group: null,
+            is_variant: false,
+            variant_of: null,
+          } as BioLink)
+        }
+        isOpen={Boolean(addingVariantLinkId)}
+        saving={savingVariant}
+        variantTitle={variantTitle}
+        variantUrl={variantUrl}
+        message={variantMessage}
+        onTitleChange={setVariantTitle}
+        onUrlChange={setVariantUrl}
+        onSave={createVariant}
+        onClose={closeAddVariantModal}
+      />
+
+      <ConfirmMakeWinnerModal
+        isOpen={Boolean(confirmWinnerLink)}
+        winnerLink={
+          confirmWinnerLink ??
+          ({
+            id: "",
+            profile_id: "",
+            title: "",
+            url: "",
+            position: 0,
+            starts_at: null,
+            ends_at: null,
+            ab_group: null,
+            is_variant: false,
+            variant_of: null,
+          } as BioLink)
+        }
+        otherVariants={confirmOtherVariants}
+        saving={savingWinner}
+        message={winnerMessage}
+        onConfirm={makeWinnerDefinitive}
+        onClose={closeConfirmWinnerModal}
+      />
+
+      <ProductModal
+        isOpen={productModalOpen}
+        product={editingProduct}
+        saving={savingProduct}
+        form={productForm}
+        message={productMessage}
+        onFormChange={setProductForm}
+        onSave={saveProduct}
+        onClose={closeProductModal}
+      />
+    </main>
+  );
+}
