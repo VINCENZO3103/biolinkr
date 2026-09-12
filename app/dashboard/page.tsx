@@ -3988,30 +3988,52 @@ const previewProducts = products.map((p) => ({
         </p>
       </div>
 
-      <div className="mx-auto mt-6 flex w-full max-w-md justify-center px-4">
-  <IPhonePreview>
-    <ProfilePreview
-      displayName={displayName}
-      username={username}
-      bio={bio}
-      avatarUrl={avatarUrl}
-      avatarWidth={profileImageWidth}
-      avatarPositionX={profileImagePositionX}
-      bgColor={bgColor}
-      bgImageUrl={bgImageUrl}
-      buttonStyle={buttonStyle as "solid" | "outline" | "glass"}
-      displayNameColor={displayNameColor}
-      usernameColor={usernameColor}
-      bioColor={bioColor}
-      displayNameSize={displayNameSize}
-      bioSize={bioSize}
-      links={previewLinks}
-      products={previewProducts}
-      socialLinks={socialLinks}
-      socialPosition={socialPosition}
-    />
-  </IPhonePreview>
-</div>
+      {/* Preview mobile (stesso identico layout della sezione Link) */}
+      <div className="mt-8">
+        <div className="mx-auto w-full max-w-[390px]">
+          <div
+            className={`overflow-hidden rounded-[32px] border-[8px] border-[#080a0d] shadow-[0_24px_70px_rgba(0,0,0,0.45)]`}
+          >
+            <div className="sticky top-6 mx-auto w-full max-w-[740px]">
+              <IPhonePreview>
+                <ProfilePreview
+                  displayName={displayName ?? ""}
+                  username={(username ?? "").trim().toLowerCase()}
+                  bio={bio ?? ""}
+                  avatarUrl={avatarUrl ?? ""}
+                  avatarWidth={profileImageWidth}
+                  avatarPositionX={profileImagePositionX}
+                  bgColor={bgColor ?? ""}
+                  bgImageUrl={bgImageUrl ?? ""}
+                  buttonStyle={(buttonStyle ?? "solid") as "solid" | "outline" | "glass"}
+                  displayNameColor={displayNameColor ?? "#ffffff"}
+                  usernameColor={usernameColor ?? "#00d084"}
+                  bioColor={bioColor ?? "rgba(255,255,255,0.7)"}
+                  displayNameSize={displayNameSize ?? "text-4xl"}
+                  bioSize={bioSize ?? "text-base"}
+                  links={previewLinks}
+                  products={previewProducts}
+                  socialLinks={socialLinks}
+                  socialPosition={socialPosition}
+                />
+              </IPhonePreview>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {publicProfileUrl && (
+        <Link
+          href={publicProfileUrl}
+          className="mt-6 inline-flex w-full items-center justify-center rounded-xl border border-[#00d084]/60 px-4 py-3 font-bold text-[#00d084] transition hover:bg-[#00d084] hover:text-[#07100d]"
+        >
+          Apri la pagina pubblica
+        </Link>
+      )}
+
+      {message && (
+        <p className="mt-4 text-center text-sm text-white/70">{message}</p>
+      )}
     </div>
   </section>
 )}
