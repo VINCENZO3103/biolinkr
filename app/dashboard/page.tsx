@@ -3988,30 +3988,30 @@ const previewProducts = products.map((p) => ({
         </p>
       </div>
 
-      <div className="mx-auto mt-6 w-full max-w-md">
-        <IPhonePreview>
-          <ProfilePreview
-            displayName={displayName}
-            username={username}
-            bio={bio}
-            avatarUrl={avatarUrl}
-            avatarWidth={profileImageWidth}
-            avatarPositionX={profileImagePositionX}
-            bgColor={bgColor}
-            bgImageUrl={bgImageUrl}
-            buttonStyle={buttonStyle as "solid" | "outline" | "glass"}
-            displayNameColor={displayNameColor}
-            usernameColor={usernameColor}
-            bioColor={bioColor}
-            displayNameSize={displayNameSize}
-            bioSize={bioSize}
-            links={previewLinks}
-            products={previewProducts}
-            socialLinks={socialLinks}
-            socialPosition={socialPosition}
-          />
-        </IPhonePreview>
-      </div>
+      <div className="mx-auto mt-6 flex w-full max-w-md justify-center px-4">
+  <IPhonePreview>
+    <ProfilePreview
+      displayName={displayName}
+      username={username}
+      bio={bio}
+      avatarUrl={avatarUrl}
+      avatarWidth={profileImageWidth}
+      avatarPositionX={profileImagePositionX}
+      bgColor={bgColor}
+      bgImageUrl={bgImageUrl}
+      buttonStyle={buttonStyle as "solid" | "outline" | "glass"}
+      displayNameColor={displayNameColor}
+      usernameColor={usernameColor}
+      bioColor={bioColor}
+      displayNameSize={displayNameSize}
+      bioSize={bioSize}
+      links={previewLinks}
+      products={previewProducts}
+      socialLinks={socialLinks}
+      socialPosition={socialPosition}
+    />
+  </IPhonePreview>
+</div>
     </div>
   </section>
 )}
