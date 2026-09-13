@@ -147,11 +147,16 @@ export default async function PublicProfilePage({
 }: PublicProfilePageProps) {
   const { username } = await params;
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const supabasePublishableKey =
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  const supabase = createClient(supabaseUrl, supabasePublishableKey);
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error(
+    "Supabase non configurato: aggiungi NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY alle variabili d'ambiente."
+  );
+}
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
