@@ -4,6 +4,7 @@ import { NextResponse } from "next/server";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+
     const linkId =
       typeof body?.linkId === "string" ? body.linkId.trim() : "";
 
@@ -15,16 +16,21 @@ export async function POST(request: Request) {
     }
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-    if (!supabaseUrl || !supabaseSecretKey) {
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error("track-click: env Supabase mancanti", {
+        hasUrl: Boolean(supabaseUrl),
+        hasAnonKey: Boolean(supabaseAnonKey),
+      });
+
       return NextResponse.json(
         { error: "Configurazione Supabase mancante sul server" },
         { status: 500 }
       );
     }
 
-    const supabase = createClient(supabaseUrl, supabaseSecretKey, {
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         autoRefreshToken: false,
         persistSession: false,
@@ -39,7 +45,10 @@ export async function POST(request: Request) {
       console.error("Errore insert link_clicks:", error);
 
       return NextResponse.json(
-        { error: error.message },
+        {
+          error: "Impossibile registrare il click",
+          detail: error.message,
+        },
         { status: 500 }
       );
     }

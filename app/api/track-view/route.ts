@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     const campaign = cleanUtmValue(body?.campaign);
     const content = cleanUtmValue(body?.content);
 
-    if (typeof profileId !== "string" || !profileId) {
+    if (typeof profileId !== "string" || !profileId.trim()) {
       return NextResponse.json(
         { error: "profileId non valido" },
         { status: 400 }
@@ -29,20 +29,29 @@ export async function POST(request: NextRequest) {
     }
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabasePublishableKey =
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-    if (!supabaseUrl || !supabasePublishableKey) {
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error("track-view: env Supabase mancanti", {
+        hasUrl: Boolean(supabaseUrl),
+        hasAnonKey: Boolean(supabaseAnonKey),
+      });
+
       return NextResponse.json(
         { error: "Configurazione Supabase mancante" },
         { status: 500 }
       );
     }
 
-    const supabase = createClient(supabaseUrl, supabasePublishableKey);
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
 
     const { error } = await supabase.rpc("record_profile_view", {
-      viewed_profile_id: profileId,
+      viewed_profile_id: profileId.trim(),
       source,
       medium,
       campaign,
@@ -63,7 +72,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error("Errore endpoint visite:", error);
+    console.error("Errore endpoint track-view:", error);
 
     return NextResponse.json(
       { error: "Richiesta visita non valida" },
