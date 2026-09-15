@@ -50,6 +50,7 @@ avatar_position_x: number | null;
 avatar_position_y: number | null;
   bg_color: string | null;
   bg_image_url: string | null;
+  bg_video_url: string | null; 
   button_style: string;
   social_position: "below_profile" | "footer" | null;
   display_name_color: string | null;
@@ -57,6 +58,7 @@ avatar_position_y: number | null;
   bio_color: string | null;
   display_name_size: string | null;
   bio_size: string | null;
+  plan: "free" | "premium";
 };
 
 type BioLink = {
@@ -425,19 +427,17 @@ function SortableLinkItem({
   }}
 >
   {editingIconUrl ? (
+    <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full border border-black/10 bg-white/15 shadow-[0_2px_8px_rgba(0,0,0,0.16)]">
+  {editingIconUrl ? (
     <img
       src={editingIconUrl}
       alt="Anteprima icona link"
-      draggable={false}
-      className="select-none object-cover"
-      style={{
-        width: `${editingIconSize}px`,
-        height: `${editingIconSize}px`,
-        objectPosition: `${editingIconObjectX}% ${editingIconObjectY}%`,
-        pointerEvents: "none",
-        userSelect: "none",
-      }}
+      className="h-full w-full object-cover"
     />
+  ) : (
+    <span className="text-xl text-white/35">🖼️</span>
+  )}
+</div>
   ) : null}
 </div>
 
@@ -1423,6 +1423,11 @@ export default function DashboardPage() {
 
   const [userId, setUserId] = useState("");
   const [email, setEmail] = useState("");
+const [showProModal, setShowProModal] = useState(false);
+
+const [redeemCode, setRedeemCode] = useState("");
+const [redeemingCode, setRedeemingCode] = useState(false);
+const [redeemMessage, setRedeemMessage] = useState("");
 
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -1433,7 +1438,11 @@ const [displayNameSize, setDisplayNameSize] = useState("text-4xl");
 const [bioSize, setBioSize] = useState("text-base");
   const [bio, setBio] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
-
+// Oggetto profilo derivato (per ora con piano fisso)
+const profile: { plan: "free" | "premium"; bgvideourl: string | null } = {
+  plan: "free",
+  bgvideourl: null,
+};
   const saveSocialLinks = async (profileId: string, links: SocialLink[]) => {
   const {
     data: { user },
@@ -1514,13 +1523,14 @@ const [bioSize, setBioSize] = useState("text-base");
 
   const [bgColor, setBgColor] = useState("");
   const [backgroundMode, setBackgroundMode] = useState<
-  "color" | "gradient" | "image"
+  "color" | "gradient" | "image" | "video"
 >("color");
 
 const [gradientStart, setGradientStart] = useState("#2c135f");
 const [gradientEnd, setGradientEnd] = useState("#0b766a");
 const [gradientAngle, setGradientAngle] = useState("145deg");
   const [bgImageUrl, setBgImageUrl] = useState("");
+  const [bgVideoUrl, setBgVideoUrl] = useState<string | null>(null);
   const [buttonStyle, setButtonStyle] = useState("solid");
   const [previewMode, setPreviewMode] = useState<"mobile" | "desktop">("mobile");
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
@@ -1533,7 +1543,7 @@ const [socialPosition, setSocialPosition] = useState<
 const [savingSocials, setSavingSocials] = useState(false);
 const [socialEditorOpen, setSocialEditorOpen] = useState(false);
 const [activeSection, setActiveSection] = useState<
-  "links" | "appearance" | "social" | "analytics" | "preview" 
+  "links" | "appearance" | "social" | "analytics" | "abtest" | "preview" | "pro"
 >("links");
 
 const [appearancePanel, setAppearancePanel] = useState<
@@ -1636,6 +1646,9 @@ const [isDraggingAvatar, setIsDraggingAvatar] = useState(false);
   const [winnerMessage, setWinnerMessage] = useState("");
 
   const [message, setMessage] = useState("");
+  const [proModalOpen, setProModalOpen] = useState(false);
+const [lockedFeature, setLockedFeature] = useState("Sfondi video");
+  const [plan, setPlan] = useState<"free" | "premium">("free");
   const [loading, setLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -1673,10 +1686,14 @@ const [isDraggingAvatar, setIsDraggingAvatar] = useState(false);
     const { data: profile, error: profileError } = await supabase
   .from("profiles")
   .select(
-    "id, username, display_name, bio, avatar_url, avatar_width, avatar_height, avatar_position_x, avatar_position_y, bg_color, bg_image_url, button_style, social_position, display_name_color, username_color, bio_color, display_name_size, display_name_align, bio_size"
+    "id, username, display_name, bio, avatar_url, avatar_width, avatar_height, avatar_position_x, avatar_position_y, bg_color, bg_image_url, bg_video_url, button_style, social_position, display_name_color, username_color, bio_color, display_name_size, display_name_align, bio_size, plan"
   )
   .eq("id", user.id)
   .maybeSingle();
+
+  console.log("PROFILO CARICATO:", profile);
+
+  setPlan(profile?.plan === "premium" ? "premium" : "free");
 
     if (profileError) {
       setMessage(
@@ -1685,7 +1702,10 @@ const [isDraggingAvatar, setIsDraggingAvatar] = useState(false);
     }
 
     if (profile) {
-const savedProfile = profile as unknown as Profile;
+  const savedProfile = profile as unknown as Profile;
+
+  // Imposta il piano
+  setPlan((savedProfile as Profile & { plan?: "free" | "premium" }).plan === "premium" ? "premium" : "free");
 
   setSocialPosition(
     (savedProfile as Profile & {
@@ -1696,17 +1716,18 @@ const savedProfile = profile as unknown as Profile;
   );
 
   setUsername(savedProfile.username ?? "");
-setDisplayName(savedProfile.display_name ?? "");
-setBio(savedProfile.bio ?? "");
-setAvatarUrl(savedProfile.avatar_url ?? "");
-setProfileImageWidth(
-  typeof savedProfile.avatar_width === "number"
-    ? savedProfile.avatar_width
-    : 120
-);
-setProfileImagePositionX(savedProfile.avatar_position_x ?? 50);
+  setDisplayName(savedProfile.display_name ?? "");
+  setBio(savedProfile.bio ?? "");
+  setAvatarUrl(savedProfile.avatar_url ?? "");
+  setProfileImageWidth(
+    typeof savedProfile.avatar_width === "number"
+      ? savedProfile.avatar_width
+      : 120
+  );
+  setProfileImagePositionX(savedProfile.avatar_position_x ?? 50);
   setBgColor(savedProfile.bg_color ?? "");
   setBgImageUrl(savedProfile.bg_image_url ?? "");
+  setBgVideoUrl(savedProfile.bg_video_url ?? null);
   setButtonStyle(savedProfile.button_style ?? "solid");
   setBioSize(savedProfile.bio_size ?? "text-base");
 
@@ -2123,7 +2144,7 @@ function handleAvatarPointerUp(event: PointerEvent<HTMLDivElement>) {
     }
 
     const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
-    const maxSizeInBytes = 2 * 1024 * 1024;
+    const maxSizeInBytes = 10 * 1024 * 1024;
 
     if (!allowedTypes.includes(file.type)) {
       setMessage("Scegli un'immagine JPG, PNG o WEBP.");
@@ -2132,7 +2153,7 @@ function handleAvatarPointerUp(event: PointerEvent<HTMLDivElement>) {
     }
 
     if (file.size > maxSizeInBytes) {
-      setMessage("L'immagine deve pesare al massimo 2 MB.");
+      setMessage("L'immagine deve pesare al massimo 10 MB.");
       event.target.value = "";
       return;
     }
@@ -2203,15 +2224,15 @@ function handleAvatarPointerUp(event: PointerEvent<HTMLDivElement>) {
     event.target.value = "";
     return;
   }
-  if (file.size > 3 * 1024 * 1024) {
-    setMessage("L'immagine deve pesare al massimo 3 MB.");
+  if (file.size > 10 * 1024 * 1024) {
+    setMessage("L'immagine deve pesare al massimo 10 MB.");
     event.target.value = "";
     return;
   }
   const extension = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
   const filePath = `${userId}/bg.${extension}`;
   setUploadingBg(true);
-  setMessage("");
+  setMessage("Caricamento video...");
   const { error: uploadError } = await supabase.storage.from("avatars").upload(filePath, file, {
     cacheControl: "3600",
     upsert: true,
@@ -2237,6 +2258,156 @@ function handleAvatarPointerUp(event: PointerEvent<HTMLDivElement>) {
   }
   setBgImageUrl(urlWithCacheBuster);
   setMessage("Sfondo aggiornato.");
+}
+
+async function handleBgVideoChange(event: ChangeEvent<HTMLInputElement>) {
+  console.log("handleBgVideoChange START");
+  console.log("event.target.files:", event.target.files);
+  console.log("userId:", userId);
+
+  const file = event.target.files?.[0];
+  console.log("file estratto:", file);
+
+  if (!file) {
+    console.log("handleBgVideoChange EXIT: no file");
+    return;
+  }
+
+  if (!userId) {
+    console.log("handleBgVideoChange EXIT: no userId");
+    return;
+  }
+
+  console.log("Prima dei controlli su nome e dimensione");
+
+  const fileName = file.name.toLowerCase();
+  const maxSizeInBytes = 20 * 1024 * 1024; // 20 MB
+
+  const isVideo =
+    fileName.endsWith(".mp4") ||
+    fileName.endsWith(".mov") ||
+    fileName.endsWith(".webm");
+
+  const isGif = fileName.endsWith(".gif");
+
+  console.log(
+    "isVideo:",
+    isVideo,
+    "isGif:",
+    isGif,
+    "file.size:",
+    file.size,
+    "maxSizeInBytes:",
+    maxSizeInBytes
+  );
+
+  if (!isVideo && !isGif) {
+    console.log("handleBgVideoChange EXIT: estensione non supportata");
+    setMessage(
+      "Scegli un video MP4/MOV/WEBM o una GIF già ottimizzata (max 20 MB)."
+    );
+    event.target.value = "";
+    return;
+  }
+
+  if (file.size > maxSizeInBytes) {
+    console.log("handleBgVideoChange EXIT: file troppo grande");
+    setMessage("Il file deve pesare al massimo 20 MB.");
+    event.target.value = "";
+    return;
+  }
+
+  // Percorso nel bucket
+  const extension = isGif ? "gif" : "mp4";
+  const filePath = isGif
+    ? `${userId}/bg-animation.gif`
+    : `${userId}/bg-video.mp4`;
+
+  setUploadingBg(true);
+  setMessage("Caricamento file...");
+
+  console.log("Dopo setUploadingBg(true), inizio upload, filePath:", filePath);
+
+  const contentType = isGif ? "image/gif" : "video/mp4";
+
+  const { error: uploadError } = await supabase.storage
+    .from("videos")
+    .upload(filePath, file, {
+      cacheControl: "3600",
+      upsert: true,
+      contentType,
+    });
+
+  console.log("Upload finito, uploadError:", uploadError);
+
+  if (uploadError) {
+    setUploadingBg(false);
+    setMessage(`Non è stato possibile caricare il file: ${uploadError.message}`);
+    event.target.value = "";
+    return;
+  }
+
+  // Genera URL firmato (valido 1 anno)
+  const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+    .from("videos")
+    .createSignedUrl(filePath, 60 * 60 * 24 * 365);
+
+  let fileUrl: string;
+
+  if (!signedUrlError && signedUrlData?.signedUrl) {
+    // Aggiungo un parametro t= per forzare il refresh quando cambi video
+    const separator = signedUrlData.signedUrl.includes("?") ? "&" : "?";
+    fileUrl = `${signedUrlData.signedUrl}${separator}t=${Date.now()}`;
+    console.log("URL firmato file:", fileUrl);
+  } else {
+    // Fallback su URL pubblico
+    const { data: urlData } = supabase.storage
+      .from("videos")
+      .getPublicUrl(filePath);
+
+    fileUrl = `${urlData.publicUrl}?v=${Date.now()}`;
+    console.log("URL pubblico file (fallback):", fileUrl);
+  }
+
+  // Se è GIF, la salviamo come bg_image_url, altrimenti come bg_video_url
+  let updatePayload: Record<string, string> = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (isGif) {
+    updatePayload.bg_image_url = fileUrl;
+    updatePayload.bg_video_url = ""; // o null, se preferisci
+    console.log("Salvataggio come GIF (bg_image_url)");
+  } else {
+    updatePayload.bg_video_url = fileUrl;
+    console.log("Salvataggio come video (bg_video_url)");
+  }
+
+  const { error: profileError } = await supabase
+    .from("profiles")
+    .update(updatePayload)
+    .eq("id", userId);
+
+  console.log("profileError:", profileError);
+
+  setUploadingBg(false);
+  event.target.value = "";
+
+  if (profileError) {
+    setMessage("File caricato, ma non è stato possibile salvarlo nel profilo.");
+    return;
+  }
+
+  if (isGif) {
+    setBgImageUrl(fileUrl);
+    setBgVideoUrl(null);
+    setMessage("Animazione di sfondo aggiornata.");
+  } else {
+    setBgVideoUrl(fileUrl);
+    setMessage("Video di sfondo aggiornato.");
+  }
+
+  console.log("handleBgVideoChange END");
 }
 
   async function saveLinkOrder(reorderedLinks: BioLink[]) {
@@ -2406,6 +2577,7 @@ async function handleSaveProfile(event: FormEvent<HTMLFormElement>) {
   const cleanBio = bio.trim();
   const cleanBgColor = bgColor.trim() || null;
   const cleanBgImageUrl = bgImageUrl.trim() || null;
+  const cleanBgVideoUrl = bgVideoUrl ?? null; // ← aggiungi questa riga
   const cleanButtonStyle = buttonStyle.trim() || "solid";
   const cleanBioSize = bioSize || "text-base";
   const cleanSocialPosition =
@@ -2416,6 +2588,7 @@ async function handleSaveProfile(event: FormEvent<HTMLFormElement>) {
   const cleanUsernameColor = usernameColor.trim() || "#00d084";
   const cleanBioColor = bioColor.trim() || "rgba(255,255,255,0.7)";
   const cleanDisplayNameSize = displayNameSize || "text-4xl";
+
   if (!/^[a-z0-9_]{3,30}$/.test(cleanUsername)) {
     setMessage(
       "Lo username deve avere da 3 a 30 caratteri e usare solo lettere minuscole, numeri o underscore (_)."
@@ -2432,37 +2605,38 @@ async function handleSaveProfile(event: FormEvent<HTMLFormElement>) {
   setMessage("");
 
   const { data: savedProfileData, error } = await supabase
-  .from("profiles")
-  .upsert(
-    {
-      id: userId,
-      username: cleanUsername,
-      display_name: cleanDisplayName,
-      bio: cleanBio,
-      avatar_url: avatarUrl || null,
-      avatar_width: profileImageWidth,
-      avatar_height: profileImageWidth,
-      avatar_position_x: profileImagePositionX,
-      avatar_position_y: 50,
-      bg_color: cleanBgColor,
-      bg_image_url: cleanBgImageUrl,
-      button_style: cleanButtonStyle,
-      bio_size: cleanBioSize,
-      social_position: cleanSocialPosition,
-      display_name_color: cleanDisplayNameColor,
-      username_color: cleanUsernameColor,
-      bio_color: cleanBioColor,
-      display_name_size: cleanDisplayNameSize,
-      updated_at: new Date().toISOString(),
-    },
-    {
-      onConflict: "id",
-    }
-  )
-  .select(
-    "username, display_name, bio, avatar_url, avatar_width, avatar_position_x, bg_color, bg_image_url, button_style, bio_size, social_position, display_name_color, username_color, bio_color, display_name_size"
-  )
-  .single();
+    .from("profiles")
+    .upsert(
+      {
+        id: userId,
+        username: cleanUsername,
+        display_name: cleanDisplayName,
+        bio: cleanBio,
+        avatar_url: avatarUrl || null,
+        avatar_width: profileImageWidth,
+        avatar_height: profileImageWidth,
+        avatar_position_x: profileImagePositionX,
+        avatar_position_y: 50,
+        bg_color: cleanBgColor,
+        bg_image_url: cleanBgImageUrl,
+        bg_video_url: cleanBgVideoUrl, // ← aggiungi questa riga
+        button_style: cleanButtonStyle,
+        bio_size: cleanBioSize,
+        social_position: cleanSocialPosition,
+        display_name_color: cleanDisplayNameColor,
+        username_color: cleanUsernameColor,
+        bio_color: cleanBioColor,
+        display_name_size: cleanDisplayNameSize,
+        updated_at: new Date().toISOString(),
+      },
+      {
+        onConflict: "id",
+      }
+    )
+    .select(
+      "username, display_name, bio, avatar_url, avatar_width, avatar_position_x, bg_color, bg_image_url, bg_video_url, button_style, bio_size, social_position, display_name_color, username_color, bio_color, display_name_size"
+    )
+    .single();
 
   if (error) {
     setSavingProfile(false);
@@ -2479,7 +2653,7 @@ async function handleSaveProfile(event: FormEvent<HTMLFormElement>) {
   setSavingProfile(false);
   setMessage("Profilo salvato con successo.");
 
-    if (savedProfileData) {
+  if (savedProfileData) {
     setUsername(savedProfileData.username ?? "");
     setDisplayName(savedProfileData.display_name ?? "");
     setBio(savedProfileData.bio ?? "");
@@ -2488,6 +2662,7 @@ async function handleSaveProfile(event: FormEvent<HTMLFormElement>) {
     setProfileImagePositionX(savedProfileData.avatar_position_x ?? 50);
     setBgColor(savedProfileData.bg_color ?? "");
     setBgImageUrl(savedProfileData.bg_image_url ?? "");
+    setBgVideoUrl(savedProfileData.bg_video_url ?? null); // ← aggiungi questa riga
     setButtonStyle(savedProfileData.button_style ?? "solid");
     setBioSize(savedProfileData.bio_size ?? "text-base");
     setSocialPosition(
@@ -2503,6 +2678,60 @@ async function handleSaveProfile(event: FormEvent<HTMLFormElement>) {
     setDisplayNameSize(
       savedProfileData.display_name_size ?? "text-4xl"
     );
+  }
+}
+
+async function handleRedeemCode() {
+  if (!redeemCode.trim()) {
+    setRedeemMessage("Inserisci un codice.");
+    return;
+  }
+
+  setRedeemingCode(true);
+  setRedeemMessage("");
+
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user?.id) {
+      setRedeemMessage("Utente non loggato.");
+      setRedeemingCode(false);
+      return;
+    }
+
+    const { data, error } = await supabase.rpc('redeem_promo_code', {
+      p_code: redeemCode.trim().toUpperCase(),
+      p_user_id: user.id,
+    });
+
+    if (error || !data) {
+      setRedeemMessage("Errore durante il riscatto. Riprova.");
+      setRedeemingCode(false);
+      return;
+    }
+
+    const result = data as { success?: boolean; error?: string };
+
+    if (!result.success) {
+      const map: Record<string, string> = {
+        INVALID_CODE: "Codice non valido.",
+        CODE_EXPIRED: "Codice scaduto.",
+        MAX_REDEMPTIONS_REACHED: "Codice esaurito.",
+        ALREADY_USED: "Hai già usato questo codice.",
+      };
+      setRedeemMessage(map[result.error!] || "Codice non valido.");
+      setRedeemingCode(false);
+      return;
+    }
+
+    setRedeemMessage("✅ Codice riscattato! Il tuo piano è ora PRO.");
+    setRedeemCode("");
+    setRedeemingCode(false);
+
+    // Aggiorna plan localmente
+    setPlan("premium");
+  } catch {
+    setRedeemMessage("Errore durante il riscatto. Riprova.");
+    setRedeemingCode(false);
   }
 }
 
@@ -2819,7 +3048,7 @@ function handleNewLinkIconChange(event: ChangeEvent<HTMLInputElement>) {
   }
 
   const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
-  const maxSizeInBytes = 1 * 1024 * 1024;
+  const maxSizeInBytes = 5 * 1024 * 1024;
 
   if (!allowedTypes.includes(file.type)) {
     setMessage("Scegli un'icona JPG, PNG o WEBP.");
@@ -2828,7 +3057,7 @@ function handleNewLinkIconChange(event: ChangeEvent<HTMLInputElement>) {
   }
 
   if (file.size > maxSizeInBytes) {
-    setMessage("L'icona deve pesare al massimo 1 MB.");
+    setMessage("L'icona deve pesare al massimo 5 MB.");
     event.target.value = "";
     return;
   }
@@ -2978,69 +3207,95 @@ icon_object_y: editingIconObjectY,
   }
 
   async function createVariant() {
-    const originalLink = links.find((l) => l.id === addingVariantLinkId);
+  const originalLink = links.find((l) => l.id === addingVariantLinkId);
 
-    if (!originalLink) {
-      setVariantMessage("Link originale non trovato.");
-      return;
-    }
-
-    const cleanTitle = variantTitle.trim();
-    const cleanUrl = variantUrl.trim();
-
-    if (!cleanTitle) {
-      setVariantMessage("Inserisci il titolo della variante.");
-      return;
-    }
-
-    if (!isValidHttpUrl(cleanUrl)) {
-      setVariantMessage(
-        "Inserisci un URL valido che inizi con https:// oppure http://"
-      );
-      return;
-    }
-
-    setSavingVariant(true);
-    setVariantMessage("");
-
-    const { data: newVariant, error } = await supabase
-      .from("links")
-      .insert({
-        profile_id: userId,
-        title: cleanTitle,
-        url: cleanUrl,
-        position: originalLink.position + 1,
-        starts_at: originalLink.starts_at,
-        ends_at: originalLink.ends_at,
-        ab_group: originalLink.ab_group ?? crypto.randomUUID(),
-        is_variant: true,
-        variant_of: originalLink.id,
-        icon_url: originalLink.icon_url,
-      })
-      .select(
-        "id, profile_id, title, url, position, starts_at, ends_at, ab_group, is_variant, variant_of, icon_url, icon_object_x, icon_size, icon_position_x, icon_position_y, display_type, image_url, image_height, background_color, badge_text, text_color, hover_effect "
-
-
-      )
-      .single();
-
-    setSavingVariant(false);
-
-    if (error) {
-      setVariantMessage(
-        `Non Ã¨ stato possibile creare la variante: ${error.message}`
-      );
-      return;
-    }
-
-    const updatedLinks = [...links, newVariant as BioLink];
-
-    setLinks(updatedLinks);
-    closeAddVariantModal();
-
-    await loadAnalytics(userId, updatedLinks);
-    setMessage("Variante A/B creata con successo.");
+  if (!originalLink) {
+    setVariantMessage("Link originale non trovato.");
+    return;
   }
+
+  const cleanTitle = variantTitle.trim();
+  const cleanUrl = variantUrl.trim();
+
+  if (!cleanTitle) {
+    setVariantMessage("Inserisci il titolo della variante.");
+    return;
+  }
+
+  if (!isValidHttpUrl(cleanUrl)) {
+    setVariantMessage(
+      "Inserisci un URL valido che inizi con https:// oppure http://"
+    );
+    return;
+  }
+
+  setSavingVariant(true);
+  setVariantMessage("");
+
+  // Genera un ab_group se il link originale non ne ha uno
+  const abGroupValue = originalLink.ab_group ?? crypto.randomUUID();
+
+  const { data: newVariant, error } = await supabase
+    .from("links")
+    .insert({
+      profile_id: userId,
+      title: cleanTitle,
+      url: cleanUrl,
+      position: originalLink.position + 1,
+      starts_at: originalLink.starts_at,
+      ends_at: originalLink.ends_at,
+      ab_group: abGroupValue,
+      is_variant: true,
+      variant_of: originalLink.id,
+      // Icona e dimensioni ereditate dal link originale
+      icon_url: originalLink.icon_url ?? null,
+      icon_size: originalLink.icon_size ?? 24,
+      icon_object_x: originalLink.icon_object_x ?? 50,
+      icon_object_y: originalLink.icon_object_y ?? 50,
+      icon_position_x: originalLink.icon_position_x ?? "left",
+      icon_position_y: originalLink.icon_position_y ?? "center",
+    })
+    .select(
+      `id, profile_id, title, url, position, starts_at, ends_at, ab_group, is_variant, variant_of,
+       icon_url, icon_size, icon_object_x, icon_object_y, icon_position_x, icon_position_y,
+       display_type, image_url, image_height, background_color, badge_text, text_color, hover_effect`
+    )
+    .single();
+
+  setSavingVariant(false);
+
+  if (error) {
+    setVariantMessage(
+      `Non è stato possibile creare la variante: ${error.message}`
+    );
+    return;
+  }
+
+  // Aggiorna anche il link originale con lo stesso ab_group
+  const updatedOriginal = {
+    ...originalLink,
+    ab_group: abGroupValue,
+  };
+
+  const updatedLinks = [
+    ...links.filter((l) => l.id !== originalLink.id),
+    updatedOriginal,
+    newVariant as BioLink,
+  ].sort((a, b) => a.position - b.position);
+
+  setLinks(updatedLinks);
+
+  // Salva su Supabase l'ab_group aggiornato per il link originale
+  await supabase
+    .from("links")
+    .update({ ab_group: abGroupValue })
+    .eq("id", originalLink.id);
+
+  closeAddVariantModal();
+
+  await loadAnalytics(userId, updatedLinks);
+  setMessage("Variante A/B creata con successo.");
+}
 
   async function handleDeleteLink(linkId: string) {
     const previousLinks = links;
@@ -3560,47 +3815,52 @@ const previewProducts = products.map((p) => ({
 
         <nav className="sticky top-3 z-30 mt-8 hidden gap-2 overflow-x-auto rounded-2xl border border-white/10 bg-[#17181e]/95 p-2 shadow-xl backdrop-blur lg:flex">
   {[
-  { id: "links", label: "Links" },
-  { id: "appearance", label: "Aspetto" },
-  { id: "social", label: "Social" },
-  { id: "analytics", label: "Analytics" },
-  { id: "preview", label: "Anteprima" },
-].map((item) => {
+    { id: "links", label: "Links" },
+    { id: "appearance", label: "Aspetto" },
+    { id: "social", label: "Social" },
+    { id: "analytics", label: "Analytics" },
+    { id: "abtest", label: "A/B Test" },
+    { id: "preview", label: "Anteprima" },
+    { id: "pro", label: "Pro", gem: true },
+  ].map((item) => {
     const isActive = activeSection === item.id;
 
     return (
       <button
-        key={item.id}
-        type="button"
-        onClick={() =>
-          setActiveSection(
-            item.id as "links" | "appearance" | "social" | "analytics" | "preview" 
-          )
-        }
-        className={`whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-bold transition ${
-          isActive
-            ? "bg-[#00d084] text-[#07100d]"
-            : "text-white/60 hover:bg-white/10 hover:text-white"
-        }`}
-      >
-        {item.label}
-      </button>
+  key={item.id}
+  type="button"
+  onClick={() =>
+    setActiveSection(
+      item.id as "links" | "appearance" | "social" | "analytics" | "abtest" | "preview" | "pro"
+    )
+  }
+  className={`whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-bold transition ${
+    isActive
+      ? "bg-[#00d084] text-[#07100d]"
+      : "text-white/60 hover:bg-white/10 hover:text-white"
+  }`}
+>
+  {item.gem ? (
+    <><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="mr-1.5 inline h-4 w-4 shrink-0" aria-hidden="true"><defs><linearGradient id="menuGemGradient" x1="5" y1="4" x2="19" y2="20" gradientUnits="userSpaceOnUse"><stop offset="0%" stopColor="#effffc" /><stop offset="24%" stopColor="#aafbf0" /><stop offset="52%" stopColor="#3bddca" /><stop offset="100%" stopColor="#056963" /></linearGradient></defs><path d="M6.4 5.25h11.2l3 4.15L12 19.85 3.4 9.4l3-4.15Z" fill="url(#menuGemGradient)" stroke="#d9fffa" strokeWidth="0.95" strokeLinejoin="round" /><path d="M6.4 5.25h11.2l-2.7 4.15H9.1L6.4 5.25Z" fill="#b8fff6" /><path d="M3.4 9.4h17.2L12 19.85 3.4 9.4Z" fill="#078f88" /><path d="m3.4 9.4 8.6 10.45V9.4H3.4Z" fill="#25c5b6" /><path d="M12 9.4v10.45l8.6-10.45H12Z" fill="#056963" /></svg>Pro</>
+  ) : (
+    item.label
+  )}
+</button>
     );
   })}
 </nav>
 
         {activeSection === "analytics" && (
   <section className="mt-12">
+    {/* INIZIO BLOCCO FUNNEL / CARD ANALYTICS */}
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div>
         <p className="text-sm font-bold tracking-[0.22em] text-[#00d084]">
           ANALYTICS
         </p>
-
         <h2 className="mt-1 text-2xl font-black">
           Il tuo funnel
         </h2>
-
         <p className="mt-1 text-sm text-white/55">
           Visite alla pagina → click verso i tuoi link esterni.
         </p>
@@ -3617,106 +3877,414 @@ const previewProducts = products.map((p) => ({
     </div>
 
     <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {/* Visite totali */}
       <article className="rounded-2xl border border-white/10 bg-[#17181e] p-4">
-        <p className="text-sm font-bold text-white/50">
-          Visite totali
-        </p>
-
-        <p className="mt-2 text-3xl font-black text-white">
-          {totalViews}
-        </p>
-
-        <p className="mt-1 text-xs text-white/45">
-          {todayViews} nelle ultime 24 ore
-        </p>
+        <p className="text-sm font-bold text-white/50">Visite totali</p>
+        <p className="mt-2 text-3xl font-black text-white">{totalViews}</p>
+        <p className="mt-1 text-xs text-white/45">{todayViews} nelle ultime 24 ore</p>
       </article>
 
+      {/* Click social */}
       <article className="rounded-2xl border border-[#00d084]/30 bg-[#00d084]/10 p-4">
-        <p className="text-sm font-bold text-[#00d084]/80">
-          Click social
-        </p>
-
-        <p className="mt-2 text-3xl font-black text-white">
-          {totalSocialClicks}
-        </p>
-
-        <p className="mt-1 text-xs text-white/55">
-          {todaySocialClicks} nelle ultime 24 ore
-        </p>
+        <p className="text-sm font-bold text-[#00d084]/80">Click social</p>
+        <p className="mt-2 text-3xl font-black text-white">{totalSocialClicks}</p>
+        <p className="mt-1 text-xs text-white/55">{todaySocialClicks} nelle ultime 24 ore</p>
       </article>
 
+      {/* Visite ultimi 7 giorni */}
       <article className="rounded-2xl border border-white/10 bg-[#17181e] p-4">
-        <p className="text-sm font-bold text-white/50">
-          Visite ultimi 7 giorni
-        </p>
-
-        <p className="mt-2 text-3xl font-black text-white">
-          {weekViews}
-        </p>
-
-        <p className="mt-1 text-xs text-white/45">
-          Traffico recente al profilo
-        </p>
+        <p className="text-sm font-bold text-white/50">Visite ultimi 7 giorni</p>
+        <p className="mt-2 text-3xl font-black text-white">{weekViews}</p>
+        <p className="mt-1 text-xs text-white/45">Traffico recente al profilo</p>
       </article>
 
+      {/* Click totali */}
       <article className="rounded-2xl border border-white/10 bg-[#17181e] p-4">
-        <p className="text-sm font-bold text-white/50">
-          Click totali
-        </p>
-
-        <p className="mt-2 text-3xl font-black text-white">
-          {totalClicks}
-        </p>
-
-        <p className="mt-1 text-xs text-white/45">
-          {todayClicks} nelle ultime 24 ore
-        </p>
+        <p className="text-sm font-bold text-white/50">Click totali</p>
+        <p className="mt-2 text-3xl font-black text-white">{totalClicks}</p>
+        <p className="mt-1 text-xs text-white/45">{todayClicks} nelle ultime 24 ore</p>
       </article>
 
+      {/* Click ultimi 7 giorni */}
       <article className="rounded-2xl border border-white/10 bg-[#17181e] p-4">
-        <p className="text-sm font-bold text-white/50">
-          Click ultimi 7 giorni
-        </p>
-
-        <p className="mt-2 text-3xl font-black text-white">
-          {weekClicks}
-        </p>
-
-        <p className="mt-1 text-xs text-white/45">
-          Interesse recente verso i link
-        </p>
+        <p className="text-sm font-bold text-white/50">Click ultimi 7 giorni</p>
+        <p className="mt-2 text-3xl font-black text-white">{weekClicks}</p>
+        <p className="mt-1 text-xs text-white/45">Interesse recente verso i link</p>
       </article>
 
+      {/* CTR complessivo */}
       <article className="rounded-2xl border border-[#00d084]/30 bg-[#00d084]/10 p-4">
-        <p className="text-sm font-bold text-[#00d084]/80">
-          CTR complessivo
-        </p>
-
-        <p className="mt-2 text-3xl font-black text-white">
-          {totalCtr}%
-        </p>
-
-        <p className="mt-1 text-xs text-white/55">
-          Click esterni ÷ visite profilo
-        </p>
+        <p className="text-sm font-bold text-[#00d084]/80">CTR complessivo</p>
+        <p className="mt-2 text-3xl font-black text-white">{totalCtr}%</p>
+        <p className="mt-1 text-xs text-white/55">Click esterni ÷ visite profilo</p>
       </article>
 
+      {/* Link migliore */}
       <article className="rounded-2xl border border-[#00d084]/25 bg-[#17181e] p-4">
-        <p className="text-sm font-bold text-[#00d084]/80">
-          Link migliore
-        </p>
-
+        <p className="text-sm font-bold text-[#00d084]/80">Link migliore</p>
         <p className="mt-2 truncate text-xl font-black text-white">
           {topLink && topLinkClicks > 0 ? topLink.title : "Nessun dato"}
         </p>
-
         <p className="mt-1 text-xs text-white/55">
-          {topLinkClicks > 0
-            ? `${topLinkClicks} click ricevuti`
-            : "Clicca i link per testare"}
+          {topLinkClicks > 0 ? `${topLinkClicks} click ricevuti` : "Clicca i link per testare"}
         </p>
       </article>
     </div>
+    {/* FINE BLOCCO FUNNEL / CARD ANALYTICS */}
+
+    {/* TRAFFICO (quello che avevi già) */}
+    <article className="rounded-3xl border border-white/10 bg-[#17181e] p-8 sm:p-10 mt-8">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-bold tracking-[0.22em] text-[#00d084]">
+            TRAFFICO
+          </p>
+
+          <h2 className="mt-2 text-2xl font-black">
+            Fonti di traffico
+          </h2>
+        </div>
+
+        <span className="rounded-full bg-white/5 px-3 py-1 text-sm text-white/55">
+          {trafficSources.length}
+        </span>
+      </div>
+
+      <p className="mt-3 text-white/55">
+        Da dove arrivano le visite alla tua pagina.
+      </p>
+
+      {trafficSources.length === 0 ? (
+        <p className="mt-8 text-white/45">
+          Non ci sono ancora visite da analizzare.
+        </p>
+      ) : (
+        <div className="mt-8 space-y-4">
+          {trafficSources.map((source) => (
+            <div key={source.label}>
+              <div className="flex items-center justify-between gap-4 text-sm">
+                <p className="truncate font-bold text-white/85">
+                  {source.label}
+                </p>
+
+                <p className="shrink-0 text-white/50">
+                  {source.visits} visite · {source.percentage}%
+                </p>
+              </div>
+
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full bg-[#00d084] transition-all"
+                  style={{ width: `${source.percentage}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </article>
+
+    {/* CLICK PER LINK (quello che avevi già) */}
+    {links.length > 0 && (
+      <section className="biolinkr-card mt-8 overflow-hidden rounded-[28px] border border-white/10 bg-[#17181e]">
+        <div className="flex flex-col gap-3 border-b border-white/10 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div>
+            <p className="text-[10px] font-black tracking-[0.16em] text-[#00d084]">
+              PERFORMANCE LINK
+            </p>
+
+            <h3 className="mt-1 text-xl font-black tracking-[-0.04em] text-white sm:text-2xl">
+              Click per link
+            </h3>
+
+            <p className="mt-1 text-sm text-white/45">
+              Scopri quali link ricevono più attenzione.
+            </p>
+          </div>
+
+          <div className="w-fit rounded-xl border border-[#00d084]/20 bg-[#00d084]/10 px-3 py-2">
+            <p className="text-[9px] font-black tracking-[0.12em] text-[#5cf0bd]/70">
+              CLICK TOTALI
+            </p>
+
+            <p className="mt-0.5 text-lg font-black tracking-[-0.05em] text-[#5cf0bd]">
+              {totalClicks}
+            </p>
+          </div>
+        </div>
+
+        <div className="divide-y divide-white/10">
+          {totalClicks === 0 ? (
+            <div className="px-5 py-10 text-center sm:px-6 sm:py-12">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-[#00d084]/20 bg-[#00d084]/10 text-xl font-black text-[#5cf0bd]">
+                ↗
+              </div>
+
+              <h4 className="mt-5 text-lg font-black tracking-[-0.035em] text-white">
+                I tuoi primi dati stanno arrivando.
+              </h4>
+
+              <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-white/50">
+                Condividi la tua pagina BioLinkr nella bio: qui vedrai quali link
+                ricevono più click e dove vale la pena intervenire.
+              </p>
+
+              <p className="mt-5 text-xs font-bold text-[#5cf0bd]">
+                I dati compariranno automaticamente al primo click.
+              </p>
+            </div>
+          ) : (
+            links.map((link, index) => {
+              // LOG TEMPORANEO PER DEBUG A/B
+  console.log("LINK:", {
+    id: link.id,
+    title: link.title,
+    ab_group: link.ab_group,
+    is_variant: link.is_variant,
+    variant_of: link.variant_of,
+  });
+              const clicks = clicksByLink[link.id] ?? 0;
+              const percentage =
+                totalClicks > 0
+                  ? Math.round((clicks / totalClicks) * 100)
+                  : 0;
+
+              const isTopLink = index === 0 && clicks > 0;
+
+              return (
+                <div
+                  key={link.id}
+                  className={`px-5 py-4 transition duration-300 sm:px-6 ${
+                    isTopLink
+                      ? "bg-[#00d084]/[0.045]"
+                      : "hover:bg-white/[0.025]"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+  <p className="truncate font-bold text-white/85">
+    {link.title}
+  </p>
+
+  {/* Badge "PIÙ FORTE" */}
+  {isTopLink && (
+    <span className="shrink-0 rounded-md bg-[#00d084]/15 px-2 py-1 text-[9px] font-black tracking-[0.1em] text-[#5cf0bd]">
+      PIÙ FORTE
+    </span>
+  )}
+
+  {/* Badge A/B per link principale con varianti */}
+{link.ab_group &&
+  !link.is_variant &&
+  links.some(
+    (l) => l.ab_group === link.ab_group && l.is_variant && l.id !== link.id
+  ) && (
+    <span className="shrink-0 rounded-md bg-[#9d7bff]/15 px-2 py-1 text-[9px] font-black tracking-[0.1em] text-[#d3b8ff]">
+      A/B
+    </span>
+  )}
+
+  {/* Badge "Variante" per le varianti */}
+  {link.is_variant && (
+    <span className="shrink-0 rounded-md bg-[#9d7bff]/15 px-2 py-1 text-[9px] font-black tracking-[0.1em] text-[#d3b8ff]">
+      Variante
+    </span>
+  )}
+</div>
+
+                      <p className="mt-1 text-xs text-white/40">
+                        {percentage}% dei click registrati
+                      </p>
+                    </div>
+
+                    <div className="shrink-0 text-right">
+                      <p className="text-lg font-black tracking-[-0.05em] text-white">
+                        {clicks}
+                      </p>
+
+                      <p className="text-[10px] font-black tracking-[0.12em] text-white/40">
+                        CLICK
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+                    <div
+                      className={`h-full rounded-full transition-all duration-700 ${
+                        isTopLink ? "bg-[#00d084]" : "bg-[#00d084]/65"
+                      }`}
+                      style={{ width: `${percentage}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </section>
+    )}
+  </section>
+)}
+
+{activeSection === "abtest" && (
+  <section className="mt-12">
+    {/* Intestazione */}
+    <div className="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <p className="text-sm font-bold tracking-[0.22em] text-[#00d084]">
+          A/B TEST
+        </p>
+        <h2 className="mt-2 text-2xl font-black text-white">
+          I tuoi test
+        </h2>
+        <p className="mt-2 text-sm text-white/55">
+          Confronta due versioni di un link e rendi definitiva quella che performa meglio.
+        </p>
+      </div>
+      <span className="rounded-full border border-[#00d084]/30 bg-[#00d084]/10 px-3 py-2 text-sm font-bold text-[#00d084]">
+        {abGroups.length} {abGroups.length === 1 ? "test" : "test"}
+      </span>
+    </div>
+
+    {/* Box spiegazione / mini-tutorial */}
+    <div className="mt-6 rounded-2xl border border-[#00d084]/20 bg-[#00d084]/[0.06] p-5 sm:p-6">
+      <p className="text-sm font-black text-white">
+        Cos’è un A/B test su BioLinkr
+      </p>
+      <p className="mt-2 text-sm leading-6 text-white/60">
+        Un A/B test ti permette di mostrare a caso due versioni dello stesso link
+        (titolo e/o URL diversi) e vedere quale delle due riceve più click.
+        Dopo un periodo di test, puoi rendere definitiva la versione vincente
+        ed eliminare le altre.
+      </p>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border border-white/10 bg-[#0c0d12] p-3">
+          <p className="text-xs font-black text-white/80">
+            1. Crea una variante
+          </p>
+          <p className="mt-1 text-xs text-white/50">
+            Dalla lista Link, apri un link e premi “Crea variante”. Cambia titolo e/o URL.
+          </p>
+        </div>
+        <div className="rounded-xl border border-white/10 bg-[#0c0d12] p-3">
+          <p className="text-xs font-black text-white/80">
+            2. Raccogli click
+          </p>
+          <p className="mt-1 text-xs text-white/50">
+            BioLinkr mostra a caso la versione A o B. Qui vedi quanti click riceve ciascuna.
+          </p>
+        </div>
+        <div className="rounded-xl border border-white/10 bg-[#0c0d12] p-3">
+          <p className="text-xs font-black text-white/80">
+            3. Rendi definitiva
+          </p>
+          <p className="mt-1 text-xs text-white/50">
+            Quando una variante vince, premi “Rendi definitiva” e tieni solo quella.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    {abGroups.length === 0 ? (
+      <div className="mt-8 rounded-2xl border border-dashed border-white/15 bg-[#0c0d12] px-5 py-10 text-center">
+        <p className="font-bold text-white">
+          Nessun test A/B attivo
+        </p>
+        <p className="mt-2 max-w-md text-sm text-white/50">
+          Quando creerai una seconda variante per un link, qui vedrai il confronto
+          tra le versioni e potrai rendere definitiva quella che riceve più click.
+        </p>
+        <button
+          type="button"
+          onClick={() => setActiveSection("links")}
+          className="mt-6 inline-flex items-center gap-2 rounded-xl border border-[#00d084]/25 bg-[#00d084]/10 px-4 py-2.5 text-sm font-black text-[#5cf0bd] transition hover:border-[#00d084]/55 hover:bg-[#00d084]/15"
+        >
+          Vai ai link
+          <span className="text-lg">→</span>
+        </button>
+      </div>
+    ) : (
+      <div className="mt-8 space-y-8">
+        {abGroups.map((group) => {
+          if (!group.winner) return null;
+
+          return (
+            <div
+              key={group.ab_group}
+              className="rounded-2xl border border-white/10 bg-[#0c0d12] p-6"
+            >
+              {/* Header del test */}
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <p className="font-bold text-white">
+                    Test A/B: {group.links[0].title}
+                  </p>
+                  <p className="mt-1 text-sm text-white/45">
+                    {group.links.length} varianti · {group.totalClicksInGroup} click totali
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => openConfirmWinnerModal(group, group.winner!)}
+                  className="rounded-xl border border-[#9d7bff]/40 px-4 py-2 text-sm font-bold text-[#d3b8ff] transition hover:bg-[#9d7bff] hover:text-[#0c0d12]"
+                >
+                  Rendi definitiva
+                </button>
+              </div>
+
+              {/* Lista varianti (nessun titolo aggiuntivo) */}
+              <div className="mt-6 space-y-4">
+                {group.stats.map((stat) => {
+                  const percentage =
+                    group.totalClicksInGroup > 0
+                      ? Math.round((stat.clicks / group.totalClicksInGroup) * 100)
+                      : 0;
+
+                  const isWinner =
+                    group.winner && stat.link.id === group.winner.link.id;
+
+                  return (
+                    <div key={stat.link.id}>
+                      <div className="flex items-center justify-between gap-4 text-sm">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="truncate font-bold text-white/85">
+                              {stat.link.title}
+                            </p>
+                            {isWinner && (
+                              <span className="rounded-full border border-[#00d084]/30 bg-[#00d084]/15 px-2 py-0.5 text-xs font-bold text-[#00d084]">
+                                Vincitore
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-1 truncate text-xs text-white/40">
+                            {stat.link.url}
+                          </p>
+                        </div>
+                        <p className="shrink-0 text-right text-white/50">
+                          {stat.clicks} click · {percentage}%
+                        </p>
+                      </div>
+
+                      <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            isWinner ? "bg-[#00d084]" : "bg-white/30"
+                          }`}
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    )}
   </section>
 )}
 
@@ -4005,6 +4573,7 @@ const previewProducts = products.map((p) => ({
                   avatarPositionX={profileImagePositionX}
                   bgColor={bgColor ?? ""}
                   bgImageUrl={bgImageUrl ?? ""}
+                  bgVideoUrl={bgVideoUrl}
                   buttonStyle={(buttonStyle ?? "solid") as "solid" | "outline" | "glass"}
                   displayNameColor={displayNameColor ?? "#ffffff"}
                   usernameColor={usernameColor ?? "#00d084"}
@@ -4399,49 +4968,206 @@ const previewProducts = products.map((p) => ({
       subito; premi “Salva modifiche” per pubblicare.
     </p>
 
-    <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl bg-black/20 p-1">
-      <button
-        type="button"
-        onClick={() => {
-          setBackgroundMode("color");
-          setBgImageUrl("");
-        }}
-        className={`rounded-lg px-3 py-2 text-xs font-bold transition ${
-          backgroundMode === "color"
-            ? "bg-white/10 text-white shadow-sm"
-            : "text-white/45 hover:text-white/75"
-        }`}
-      >
-        Colore
-      </button>
+    <div className="mt-4 grid grid-cols-2 gap-2 rounded-xl bg-black/20 p-1 sm:grid-cols-4">
+  {/* Colore */}
+  <button
+    type="button"
+    onClick={() => {
+      setBackgroundMode("color");
+      setBgImageUrl("");
+    }}
+    className={`rounded-lg px-3 py-2 text-xs font-bold transition ${
+      backgroundMode === "color"
+        ? "bg-white/10 text-white shadow-sm"
+        : "text-white/45 hover:text-white/75"
+    }`}
+  >
+    Colore
+  </button>
 
-      <button
-        type="button"
-        onClick={() => {
-          setBackgroundMode("gradient");
-          setBgImageUrl("");
-        }}
-        className={`rounded-lg px-3 py-2 text-xs font-bold transition ${
-          backgroundMode === "gradient"
-            ? "bg-white/10 text-white shadow-sm"
-            : "text-white/45 hover:text-white/75"
-        }`}
-      >
-        Gradiente
-      </button>
+  {/* Gradiente */}
+  <button
+    type="button"
+    onClick={() => {
+      setBackgroundMode("gradient");
+      setBgImageUrl("");
+    }}
+    className={`rounded-lg px-3 py-2 text-xs font-bold transition ${
+      backgroundMode === "gradient"
+        ? "bg-white/10 text-white shadow-sm"
+        : "text-white/45 hover:text-white/75"
+    }`}
+  >
+    Gradiente
+  </button>
 
-      <button
-        type="button"
-        onClick={() => setBackgroundMode("image")}
-        className={`rounded-lg px-3 py-2 text-xs font-bold transition ${
-          backgroundMode === "image"
-            ? "bg-white/10 text-white shadow-sm"
-            : "text-white/45 hover:text-white/75"
-        }`}
+  {/* Immagine */}
+  <button
+    type="button"
+    onClick={() => {
+      setBackgroundMode("image");
+    }}
+    className={`rounded-lg px-3 py-2 text-xs font-bold transition ${
+      backgroundMode === "image"
+        ? "bg-white/10 text-white shadow-sm"
+        : "text-white/45 hover:text-white/75"
+    }`}
+  >
+    Immagine
+  </button>
+
+  {/* Video PRO */}
+  <button
+  type="button"
+  onClick={() => {
+    if (plan !== "premium") {
+  setLockedFeature("Sfondi video");
+  setProModalOpen(true);
+  return;
+}
+
+    setBackgroundMode("video");
+  }}
+  className={`group relative overflow-visible rounded-lg border px-3 py-2 text-xs font-bold transition ${
+    backgroundMode === "video"
+      ? "border-[#00d084] bg-[#00d084]/10 text-white shadow-[0_0_12px_rgba(0,208,132,0.35)]"
+      : "border-[#00d084]/40 bg-[#00d084]/5 text-[#00d084] hover:border-[#00d084] hover:bg-[#00d084]/10"
+  }`}
+>
+  {/* Ancora fissa: il diamante è sempre al centro di questo cerchio da 28 px */}
+  <span
+    aria-hidden="true"
+    className="pointer-events-none absolute -right-1.5 -top-1.5 z-10 h-7 w-7"
+  >
+    {/* Pill PRO: compare e si apre solo a SINISTRA del diamante */}
+    <span
+      className="absolute right-0 top-0 flex h-7 w-7 items-center justify-start overflow-hidden rounded-full border border-[#40e0d0]/50 bg-[#080b0d]/95 shadow-[0_3px_10px_rgba(0,0,0,0.35),0_0_10px_rgba(64,224,208,0.28)] transition-[width,border-color,box-shadow,background-color] duration-400 ease-out group-hover:w-[54px] group-hover:border-[#40e0d0]/80 group-hover:bg-[#091110] group-hover:shadow-[0_4px_15px_rgba(0,0,0,0.4),0_0_16px_rgba(64,224,208,0.48)] group-focus-visible:w-[54px] group-focus-visible:border-[#40e0d0]/80 group-focus-visible:bg-[#091110] group-focus-visible:shadow-[0_4px_15px_rgba(0,0,0,0.4),0_0_16px_rgba(64,224,208,0.48)]"
+    >
+      {/* PRO: sta nella parte nuova che si apre verso sinistra */}
+      <span className="absolute left-2 top-1/2 -translate-y-1/2 whitespace-nowrap text-[8px] font-black uppercase tracking-[0.1em] text-[#d9fffa] opacity-0 transition-opacity delay-100 duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
+        PRO
+      </span>
+    </span>
+
+    {/* Diamante: layer separato, MAI animato e perfettamente centrale */}
+    <span className="absolute inset-0 grid place-items-center">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        className="h-[17px] w-[17px] overflow-visible drop-shadow-[0_2px_2px_rgba(0,44,50,0.85)]"
+        aria-hidden="true"
       >
-        Immagine
-      </button>
-    </div>
+        <defs>
+          <linearGradient
+            id="proGemBase"
+            x1="5"
+            y1="4"
+            x2="19"
+            y2="20"
+            gradientUnits="userSpaceOnUse"
+          >
+            <stop offset="0%" stopColor="#effffc" />
+            <stop offset="20%" stopColor="#aafbf0" />
+            <stop offset="48%" stopColor="#3bddca" />
+            <stop offset="76%" stopColor="#099e95" />
+            <stop offset="100%" stopColor="#045d5b" />
+          </linearGradient>
+
+          <linearGradient
+            id="proGemTop"
+            x1="7"
+            y1="5"
+            x2="16"
+            y2="10"
+            gradientUnits="userSpaceOnUse"
+          >
+            <stop offset="0%" stopColor="#ffffff" />
+            <stop offset="48%" stopColor="#b8fff6" />
+            <stop offset="100%" stopColor="#39cfbf" />
+          </linearGradient>
+
+          <clipPath id="proGemClip">
+            <path d="M6.4 5.25h11.2l3 4.15L12 19.85 3.4 9.4l3-4.15Z" />
+          </clipPath>
+
+          <linearGradient id="proGemShine" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0" />
+            <stop offset="42%" stopColor="#ffffff" stopOpacity="0" />
+            <stop offset="50%" stopColor="#ffffff" stopOpacity="0.38" />
+            <stop offset="60%" stopColor="#d9fffa" stopOpacity="0.12" />
+            <stop offset="72%" stopColor="#ffffff" stopOpacity="0" />
+            <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+
+        <path
+          d="M6.4 5.25h11.2l3 4.15L12 19.85 3.4 9.4l3-4.15Z"
+          fill="url(#proGemBase)"
+          stroke="#d9fffa"
+          strokeWidth="0.95"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M6.4 5.25h11.2l-2.7 4.15H9.1L6.4 5.25Z"
+          fill="url(#proGemTop)"
+        />
+        <path d="M6.4 5.25 9.1 9.4H3.4l3-4.15Z" fill="#9effef" opacity="0.82" />
+        <path d="m17.6 5.25-2.7 4.15h5.7l-3-4.15Z" fill="#2dbdaf" opacity="0.94" />
+        <path d="M3.4 9.4h17.2L12 19.85 3.4 9.4Z" fill="#078f88" />
+        <path d="m3.4 9.4 8.6 10.45V9.4H3.4Z" fill="#25c5b6" />
+        <path d="M12 9.4v10.45l8.6-10.45H12Z" fill="#056963" />
+
+        <path
+          d="M7.1 6.4h4.75L9.7 8.45H5.65L7.1 6.4Z"
+          fill="#ffffff"
+          opacity="0.62"
+        />
+
+        {/* Riflesso leggero, interno alla gemma */}
+        <g clipPath="url(#proGemClip)" opacity="0.42">
+          <rect
+            x="-12"
+            y="-2"
+            width="7"
+            height="30"
+            fill="url(#proGemShine)"
+            transform="rotate(18 12 12)"
+          >
+            <animate
+              attributeName="x"
+              values="-12;28"
+              dur="5.2s"
+              repeatCount="indefinite"
+            />
+          </rect>
+        </g>
+
+        <path
+          d="M3.4 9.4h17.2M9.1 9.4 12 19.85l2.9-10.45M6.4 5.25l2.7 4.15m8.5-4.15-2.7 4.15"
+          fill="none"
+          stroke="#034c49"
+          strokeWidth="0.55"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity="0.5"
+        />
+      </svg>
+    </span>
+  </span>
+
+  <span className="flex items-center justify-center pr-2">
+    Video
+  </span>
+</button>
+</div>
+
+{plan !== "premium" && backgroundMode === "video" && (
+  <p className="mt-2 text-center text-[11px] text-white/50">
+    Il video di sfondo è una funzionalità Premium.
+  </p>
+)}
+
+    
 
     {backgroundMode === "color" && (
       <div className="mt-5">
@@ -4674,53 +5400,111 @@ const previewProducts = products.map((p) => ({
     )}
 
     {backgroundMode === "image" && (
-      <div className="mt-5 rounded-2xl border border-white/10 bg-[#0c0d12] p-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-bold text-white">
-              Immagine di sfondo
-            </p>
+  <div className="mt-5 rounded-2xl border border-white/10 bg-[#0c0d12] p-4">
+    <div className="flex items-center justify-between gap-3">
+      <div>
+        <p className="text-sm font-bold text-white">
+          Immagine di sfondo
+        </p>
 
-            <p className="mt-1 text-xs text-white/45">
-              JPG, PNG o WEBP · massimo 3 MB
-            </p>
-          </div>
-
-          {bgImageUrl ? (
-            <img
-              src={bgImageUrl}
-              alt="Anteprima sfondo"
-              className="h-12 w-12 shrink-0 rounded-xl border border-white/15 object-cover"
-            />
-          ) : (
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-dashed border-white/20 text-lg text-white/35">
-              +
-            </span>
-          )}
-        </div>
-
-        <label className="mt-4 flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 py-3 text-sm font-bold text-white/75 transition hover:border-[#00d084] hover:text-[#00d084]">
-          {uploadingBg ? "Caricamento..." : "Carica immagine"}
-          <input
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={handleBgChange}
-            disabled={uploadingBg}
-            className="sr-only"
-          />
-        </label>
-
-        {bgImageUrl && (
-          <button
-            type="button"
-            onClick={() => setBgImageUrl("")}
-            className="mt-3 w-full rounded-xl px-4 py-2 text-sm font-bold text-red-300 transition hover:bg-red-400/10"
-          >
-            Rimuovi immagine
-          </button>
-        )}
+        <p className="mt-1 text-xs text-white/45">
+          JPG, PNG o WEBP · massimo 3 MB
+        </p>
       </div>
+
+      {bgImageUrl ? (
+        <img
+          src={bgImageUrl}
+          alt="Anteprima sfondo"
+          className="h-12 w-12 shrink-0 rounded-xl border border-white/15 object-cover"
+        />
+      ) : (
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-dashed border-white/20 text-lg text-white/35">
+          +
+        </span>
+      )}
+    </div>
+
+    <label className="mt-4 flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 py-3 text-sm font-bold text-white/75 transition hover:border-[#00d084] hover:text-[#00d084]">
+      {uploadingBg ? "Caricamento..." : "Carica immagine"}
+      <input
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        onChange={handleBgChange}
+        disabled={uploadingBg}
+        className="sr-only"
+      />
+    </label>
+
+    {bgImageUrl && (
+      <button
+        type="button"
+        onClick={() => setBgImageUrl("")}
+        className="mt-3 w-full rounded-xl px-4 py-2 text-sm font-bold text-red-300 transition hover:bg-red-400/10"
+      >
+        Rimuovi immagine
+      </button>
     )}
+  </div>
+)}
+
+{backgroundMode === "video" && (
+  <div className="mt-5 rounded-2xl border border-white/10 bg-[#0c0d12] p-4">
+    <div className="flex items-center justify-between gap-3">
+      <div>
+        <p className="text-sm font-bold text-white">Video di sfondo (Premium)</p>
+        <p className="mt-1 text-xs text-white/45">
+          Carica un video MP4/MOV/WEBM o una GIF animata da usare come sfondo della pagina · massimo 20 MB
+        </p>
+      </div>
+      {bgVideoUrl && (
+        <p className="flex items-center gap-2 text-xs font-bold text-[#00d084]">
+          <span aria-hidden="true">✓</span>
+          Video caricato
+        </p>
+      )}
+    </div>
+
+    <label className="mt-4 flex min-h-[44px] cursor-pointer items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 py-3 text-sm font-bold text-white/75 transition hover:border-[#00d084] hover:text-[#00d084]">
+      {uploadingBg ? "Caricamento..." : "Carica video"}
+      <input
+        type="file"
+        accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov,image/gif,.gif"
+        onChange={handleBgVideoChange}
+        disabled={uploadingBg}
+        className="sr-only"
+      />
+    </label>
+
+    {bgVideoUrl && (
+      <button
+        type="button"
+        onClick={async () => {
+          setBgVideoUrl(null);
+          setMessage("");
+
+          const { error } = await supabase
+            .from("profiles")
+            .update({
+              bg_video_url: null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", userId);
+
+          if (error) {
+            setMessage("Non è stato possibile rimuovere il video.");
+            return;
+          }
+
+          setMessage("Video di sfondo rimosso.");
+        }}
+        className="mt-3 w-full rounded-xl px-4 py-2 text-sm font-bold text-red-300 transition hover:bg-red-400/10"
+      >
+        Rimuovi video
+      </button>
+    )}
+  </div>
+)}
     <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-white/10 bg-[#0c0d12] p-4 sm:flex-row sm:items-center sm:justify-between">
   <p className="text-xs leading-5 text-white/45">
     Le modifiche saranno visibili dopo il salvataggio.
@@ -5247,7 +6031,7 @@ value={displayName ?? ""}
       <div>
         <h3 className="text-sm font-black text-white">Sfondo</h3>
         <p className="mt-0.5 text-[11px] text-white/45">
-          Crea l’atmosfera della tua pagina.
+          Crea l'atmosfera della tua pagina.
         </p>
       </div>
     </div>
@@ -5586,6 +6370,65 @@ value={displayName ?? ""}
         )}
       </div>
     )}
+
+    {/* Video di sfondo (Premium) */}
+    {backgroundMode === "video" && (
+  <div className="mt-5 rounded-2xl border border-white/10 bg-[#0c0d12] p-4">
+    <div className="flex items-center justify-between gap-3">
+      <div>
+        <p className="text-sm font-bold text-white">Video di sfondo (Premium)</p>
+        <p className="mt-1 text-xs text-white/45">
+           Carica un video MP4/MOV/WEBM o una GIF animata da usare come sfondo della pagina. · massimo 20 MB
+        </p>
+      </div>
+      {bgVideoUrl && (
+  <p className="flex items-center gap-2 text-xs font-bold text-[#00d084]">
+    <span aria-hidden="true">✓</span>
+    Video caricato
+  </p>
+)}
+    </div>
+
+    <label className="mt-4 flex min-h-[44px] cursor-pointer items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 py-3 text-sm font-bold text-white/75 transition hover:border-[#00d084] hover:text-[#00d084]">
+      {uploadingBg ? "Caricamento..." : "Carica video"}
+      <input
+        type="file"
+        accept="video/mp4,video/webm"
+        onChange={handleBgVideoChange}
+        disabled={uploadingBg}
+        className="sr-only"
+      />
+    </label>
+
+    {bgVideoUrl && (
+      <button
+        type="button"
+        onClick={async () => {
+          setBgVideoUrl(null);
+          setMessage("");
+
+          const { error } = await supabase
+            .from("profiles")
+            .update({
+              bg_video_url: null,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", userId);
+
+          if (error) {
+            setMessage("Non è stato possibile rimuovere il video.");
+            return;
+          }
+
+          setMessage("Video di sfondo rimosso.");
+        }}
+        className="mt-3 w-full rounded-xl px-4 py-2 text-sm font-bold text-red-300 transition hover:bg-red-400/10"
+      >
+        Rimuovi video
+      </button>
+    )}
+  </div>
+)}
   </div>
 </section>
 
@@ -6067,7 +6910,8 @@ value={displayName ?? ""}
         </div>
       </section>
     )}
-
+    {activeSection === "links" && (
+  <>
     <form
       onSubmit={handleAddLink}
       className="rounded-3xl border border-white/10 bg-[#17181e] p-8 sm:p-10"
@@ -6166,7 +7010,7 @@ value={displayName ?? ""}
                   src={newLinkImagePreview}
                   alt="Anteprima immagine link"
                   draggable={false}
-onDragStart={(e) => e.preventDefault()}
+                  onDragStart={(e) => e.preventDefault()}
                   className="h-20 w-28 rounded-xl border border-white/15 object-contain"
                 />
               ) : (
@@ -6344,25 +7188,27 @@ onDragStart={(e) => e.preventDefault()}
       </button>
     </form>
 
-    <section className="rounded-3xl border border-white/10 bg-[#17181e] p-8 sm:p-10">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-black">I tuoi link</h2>
-          <p className="mt-2 text-sm text-white/50">
-            Trascina l'icona ⋮⋮ per cambiare l'ordine dei pulsanti.
-          </p>
+    {/* I tuoi link – unico blocco, senza titolo duplicato */}
+    <section className="mt-12">
+      <section className="rounded-3xl border border-white/10 bg-[#17181e] p-8 sm:p-10">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-black">I tuoi link</h2>
+            <p className="mt-2 text-sm text-white/50">
+              Trascina l'icona ⋮⋮ per cambiare l'ordine dei pulsanti.
+            </p>
+          </div>
+
+          <span className="rounded-full bg-white/5 px-3 py-1 text-sm text-white/55">
+            {links.length}
+          </span>
         </div>
 
-        <span className="rounded-full bg-white/5 px-3 py-1 text-sm text-white/55">
-          {links.length}
-        </span>
-      </div>
-
-      {links.length === 0 ? (
-        <p className="mt-6 text-white/55">
-          Non hai ancora aggiunto nessun link.
-        </p>
-      ) : (
+        {links.length === 0 ? (
+          <p className="mt-6 text-white/55">
+            Non hai ancora aggiunto nessun link.
+          </p>
+        ) : (
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -6437,44 +7283,12 @@ onResetIconObjectPosition={() => {
           </SortableContext>
         </DndContext>
       )}
-
-      {links.length > 0 && (
-        <div className="mt-8 border-t border-white/10 pt-6">
-          <h3 className="text-lg font-black">Click per link</h3>
-
-          <div className="mt-4 space-y-3">
-            {links.map((link) => {
-              const clicks = clicksByLink[link.id] ?? 0;
-              const percentage =
-                totalClicks > 0
-                  ? Math.round((clicks / totalClicks) * 100)
-                  : 0;
-
-              return (
-                <div key={link.id}>
-                  <div className="flex items-center justify-between gap-4 text-sm">
-                    <p className="truncate font-bold text-white/80">
-                      {link.title}
-                    </p>
-
-                    <p className="shrink-0 text-white/50">
-                      {clicks} click
-                    </p>
-                  </div>
-
-                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
-                    <div
-                      className="h-full rounded-full bg-[#00d084] transition-all"
-                      style={{ width: `${percentage}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </section>
+    </section>
+  </>
+)}
+
+    
   </div>
 
   {(activeSection === "links" || activeSection === "appearance") && (
@@ -6538,6 +7352,7 @@ onResetIconObjectPosition={() => {
     avatarPositionX={profileImagePositionX}
     bgColor={bgColor ?? ""}
     bgImageUrl={bgImageUrl ?? ""}
+    bgVideoUrl={bgVideoUrl}
     buttonStyle={(buttonStyle ?? "solid") as "solid" | "outline" | "glass"}
     displayNameColor={displayNameColor ?? "#ffffff"}
     usernameColor={usernameColor ?? "#00d084"}
@@ -6597,6 +7412,7 @@ onResetIconObjectPosition={() => {
           avatarUrl={avatarUrl}
           bgColor={bgColor}
           bgImageUrl={bgImageUrl}
+          bgVideoUrl={bgVideoUrl ?? null}
           buttonStyle={buttonStyle as "solid" | "outline" | "glass"}
                   displayNameColor={displayNameColor}
         usernameColor={usernameColor}
@@ -6659,6 +7475,236 @@ onResetIconObjectPosition={() => {
 </section>
       </div>
 
+{activeSection === "pro" && (
+<section className="mt-12 max-w-7xl mx-auto">
+    <div className="relative overflow-hidden rounded-[2rem] border border-[#40e0d0]/25 bg-[#0c0f0e] p-6 shadow-[0_24px_70px_rgba(0,0,0,0.3),0_0_42px_rgba(64,224,208,0.08)] sm:p-10">
+      {/* Luci decorative */}
+      <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-[#40e0d0]/10 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-28 -right-20 h-80 w-80 rounded-full bg-[#00d084]/10 blur-3xl" />
+
+      <div className="relative">
+        <div className="flex flex-wrap items-start justify-between gap-6">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#40e0d0]/25 bg-[#40e0d0]/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.16em] text-[#a8fff0]">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                className="h-4 w-4"
+                aria-hidden="true"
+              >
+                <defs>
+                  <linearGradient
+                    id="proHubGemGradient"
+                    x1="5"
+                    y1="4"
+                    x2="19"
+                    y2="20"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0%" stopColor="#effffc" />
+                    <stop offset="24%" stopColor="#aafbf0" />
+                    <stop offset="52%" stopColor="#3bddca" />
+                    <stop offset="100%" stopColor="#056963" />
+                  </linearGradient>
+                </defs>
+
+                <path
+                  d="M6.4 5.25h11.2l3 4.15L12 19.85 3.4 9.4l3-4.15Z"
+                  fill="url(#proHubGemGradient)"
+                  stroke="#d9fffa"
+                  strokeWidth="0.95"
+                  strokeLinejoin="round"
+                />
+                <path d="M6.4 5.25h11.2l-2.7 4.15H9.1L6.4 5.25Z" fill="#b8fff6" />
+                <path d="M3.4 9.4h17.2L12 19.85 3.4 9.4Z" fill="#078f88" />
+                <path d="m3.4 9.4 8.6 10.45V9.4H3.4Z" fill="#25c5b6" />
+                <path d="M12 9.4v10.45l8.6-10.45H12Z" fill="#056963" />
+              </svg>
+
+              BioLinkr PRO
+            </div>
+
+            <h2 className="mt-5 text-4xl font-black tracking-tight text-white sm:text-5xl">
+              Il tuo profilo,
+              <span className="block text-[#78f5df]">senza limiti.</span>
+            </h2>
+
+            <p className="mt-5 max-w-xl text-base leading-7 text-white/60 sm:text-lg">
+              Porta la tua pagina oltre il link in bio essenziale: più impatto,
+              più personalizzazione e strumenti pensati per distinguerti.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-[#40e0d0]/20 bg-[#40e0d0]/[0.07] px-4 py-3 text-right">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#8fffe9]/80">
+              Il tuo piano
+            </p>
+
+            <p className="mt-1 text-lg font-black text-white">
+              {plan === "premium" ? "PRO attivo" : "Gratuito"}
+            </p>
+          </div>
+        </div>
+
+        {/* Riscatta codice PRO */}
+        <div className="mt-8 rounded-2xl border border-white/10 bg-black/20 p-5">
+          <h3 className="text-base font-black text-white">Riscatta codice PRO</h3>
+          <p className="mt-1 text-sm text-white/55">
+            Hai un codice promozionale? Inseriscilo qui per attivare BioLinkr PRO.
+          </p>
+
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+            <input
+              type="text"
+              value={redeemCode}
+              onChange={(e) => setRedeemCode(e.target.value)}
+              placeholder="Inserisci il codice ..."
+              className="min-w-0 flex-1 rounded-xl border border-white/20 bg-[#0c0d12] px-4 py-3 text-white outline-none transition placeholder:text-white/25 focus:border-[#00d084]"
+            />
+            <button
+              type="button"
+              onClick={handleRedeemCode}
+              disabled={redeemingCode}
+              className="shrink-0 rounded-xl bg-[#00d084] px-5 py-3 text-sm font-black text-[#07100d] transition hover:bg-[#19e49b] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {redeemingCode ? "Attivazione..." : "Riscatta codice"}
+            </button>
+          </div>
+
+          {redeemMessage && (
+            <p
+              className={`mt-3 text-sm ${
+                redeemMessage.startsWith("✅")
+                  ? "text-[#00d084]"
+                  : "text-red-400"
+              }`}
+            >
+              {redeemMessage}
+            </p>
+          )}
+        </div>
+
+        <div className="mt-10 grid gap-4 md:grid-cols-3">
+          <article className="rounded-2xl border border-[#40e0d0]/20 bg-black/20 p-5">
+            <div className="grid h-10 w-10 place-items-center rounded-xl border border-[#40e0d0]/25 bg-[#40e0d0]/10 text-[#8fffe9]">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-5 w-5"
+                aria-hidden="true"
+              >
+                <rect x="3" y="5" width="18" height="14" rx="3" />
+                <path d="m10 9 5 3-5 3V9Z" />
+              </svg>
+            </div>
+
+            <h3 className="mt-4 text-base font-black text-white">
+              Sfondi video
+            </h3>
+
+            <p className="mt-2 text-sm leading-6 text-white/55">
+              Aggiungi movimento, atmosfera e personalità alla tua pagina.
+            </p>
+          </article>
+
+          <article className="rounded-2xl border border-white/10 bg-black/20 p-5">
+            <div className="grid h-10 w-10 place-items-center rounded-xl border border-white/15 bg-white/[0.05] text-white/80">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-5 w-5"
+                aria-hidden="true"
+              >
+                <path d="M4 6h16" />
+                <path d="M4 12h10" />
+                <path d="M4 18h16" />
+                <path d="M17 10v4" />
+                <path d="M15 12h4" />
+              </svg>
+            </div>
+
+            <h3 className="mt-4 text-base font-black text-white">
+              Personalizzazione avanzata
+            </h3>
+
+            <p className="mt-2 text-sm leading-6 text-white/55">
+              Stili, layout e dettagli visivi più evoluti per il tuo brand.
+            </p>
+
+            <span className="mt-4 inline-flex rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white/45">
+              In arrivo
+            </span>
+          </article>
+
+          <article className="rounded-2xl border border-white/10 bg-black/20 p-5">
+            <div className="grid h-10 w-10 place-items-center rounded-xl border border-white/15 bg-white/[0.05] text-white/80">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-5 w-5"
+                aria-hidden="true"
+              >
+                <path d="M4 19V5" />
+                <path d="M4 19h16" />
+                <path d="m7 15 3-4 3 2 4-6" />
+              </svg>
+            </div>
+
+            <h3 className="mt-4 text-base font-black text-white">
+              Analytics avanzati
+            </h3>
+
+            <p className="mt-2 text-sm leading-6 text-white/55">
+              Scopri cosa funziona davvero e fai crescere il tuo pubblico.
+            </p>
+
+            <span className="mt-4 inline-flex rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white/45">
+              In arrivo
+            </span>
+          </article>
+        </div>
+
+        <div className="mt-8 flex flex-col gap-3 border-t border-white/10 pt-7 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-black text-white">
+              Pronto a rendere la tua pagina indimenticabile?
+            </p>
+
+            <p className="mt-1 text-sm text-white/50">
+              PRO sarà disponibile a breve: stiamo preparando tutto.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setMessage("Le attivazioni PRO apriranno presto.");
+            }}
+            className="shrink-0 rounded-xl bg-[#40e0d0] px-5 py-3 text-sm font-black text-[#061110] shadow-[0_8px_24px_rgba(64,224,208,0.24)] transition hover:bg-[#7af7e4] hover:shadow-[0_10px_30px_rgba(64,224,208,0.34)]"
+          >
+            Voglio PRO
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+)}
+
       <AddVariantModal
         originalLink={
           links.find((l) => l.id === addingVariantLinkId) ??
@@ -6709,6 +7755,7 @@ onResetIconObjectPosition={() => {
         onConfirm={makeWinnerDefinitive}
         onClose={closeConfirmWinnerModal}
       />
+      
 
       <ProductModal
         isOpen={productModalOpen}
@@ -6720,6 +7767,142 @@ onResetIconObjectPosition={() => {
         onSave={saveProduct}
         onClose={closeProductModal}
       />
+
+      {proModalOpen && (
+  <div
+    className="fixed inset-0 z-[100] flex items-center justify-center bg-[#050706]/80 p-4 backdrop-blur-sm"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="pro-modal-title"
+    onMouseDown={() => setProModalOpen(false)}
+  >
+    <div
+      className="relative w-full max-w-md overflow-hidden rounded-3xl border border-[#40e0d0]/25 bg-[#0c0f0e] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.65),0_0_40px_rgba(64,224,208,0.12)] sm:p-8"
+      onMouseDown={(event) => event.stopPropagation()}
+    >
+      {/* Bagliore decorativo */}
+      <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-[#40e0d0]/10 blur-3xl" />
+
+      {/* Chiudi */}
+      <button
+        type="button"
+        onClick={() => setProModalOpen(false)}
+        aria-label="Chiudi finestra"
+        className="absolute right-4 top-4 z-10 grid h-9 w-9 place-items-center rounded-full border border-white/10 bg-white/[0.04] text-lg text-white/60 transition hover:border-white/25 hover:bg-white/10 hover:text-white"
+      >
+        ×
+      </button>
+
+      <div className="relative">
+        {/* Gemma */}
+        <div className="mb-6 inline-grid h-14 w-14 place-items-center rounded-2xl border border-[#40e0d0]/35 bg-[#40e0d0]/10 shadow-[0_0_24px_rgba(64,224,208,0.2)]">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            className="h-8 w-8 drop-shadow-[0_2px_3px_rgba(0,44,50,0.9)]"
+            aria-hidden="true"
+          >
+            <defs>
+              <linearGradient
+                id="proModalGemBase"
+                x1="5"
+                y1="4"
+                x2="19"
+                y2="20"
+                gradientUnits="userSpaceOnUse"
+              >
+                <stop offset="0%" stopColor="#effffc" />
+                <stop offset="22%" stopColor="#aafbf0" />
+                <stop offset="50%" stopColor="#3bddca" />
+                <stop offset="78%" stopColor="#099e95" />
+                <stop offset="100%" stopColor="#045d5b" />
+              </linearGradient>
+            </defs>
+
+            <path
+              d="M6.4 5.25h11.2l3 4.15L12 19.85 3.4 9.4l3-4.15Z"
+              fill="url(#proModalGemBase)"
+              stroke="#d9fffa"
+              strokeWidth="0.95"
+              strokeLinejoin="round"
+            />
+            <path d="M6.4 5.25h11.2l-2.7 4.15H9.1L6.4 5.25Z" fill="#b8fff6" />
+            <path d="M6.4 5.25 9.1 9.4H3.4l3-4.15Z" fill="#9effef" opacity="0.82" />
+            <path d="m17.6 5.25-2.7 4.15h5.7l-3-4.15Z" fill="#2dbdaf" opacity="0.94" />
+            <path d="M3.4 9.4h17.2L12 19.85 3.4 9.4Z" fill="#078f88" />
+            <path d="m3.4 9.4 8.6 10.45V9.4H3.4Z" fill="#25c5b6" />
+            <path d="M12 9.4v10.45l8.6-10.45H12Z" fill="#056963" />
+            <path
+              d="M7.1 6.4h4.75L9.7 8.45H5.65L7.1 6.4Z"
+              fill="#ffffff"
+              opacity="0.72"
+            />
+            <path
+              d="M3.4 9.4h17.2M9.1 9.4 12 19.85l2.9-10.45M6.4 5.25l2.7 4.15m8.5-4.15-2.7 4.15"
+              fill="none"
+              stroke="#034c49"
+              strokeWidth="0.55"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              opacity="0.5"
+            />
+          </svg>
+        </div>
+
+        <p className="mb-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#78f5df]">
+          Piano PRO
+        </p>
+
+        <h2
+          id="pro-modal-title"
+          className="max-w-[18rem] text-2xl font-black tracking-tight text-white sm:text-3xl"
+        >
+          Sblocca {lockedFeature}
+        </h2>
+
+        <p className="mt-3 text-sm leading-6 text-white/60">
+          Dai più carattere al tuo profilo con uno sfondo video personalizzato:
+          movimento, atmosfera e un risultato che si distingue davvero.
+        </p>
+
+        <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-4">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#40e0d0]/15 text-xs font-black text-[#8fffe9]">
+              ✓
+            </span>
+
+            <p className="text-sm leading-5 text-white/75">
+              Carica un tuo video e rendi il tuo profilo più vivo, riconoscibile
+              e memorabile.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-7 grid gap-3">
+          <button
+            type="button"
+            onClick={() => {
+  setProModalOpen(false);
+  setActiveSection("pro");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}}
+            className="rounded-xl bg-[#40e0d0] px-5 py-3.5 text-sm font-black text-[#061110] shadow-[0_8px_24px_rgba(64,224,208,0.25)] transition hover:bg-[#7af7e4] hover:shadow-[0_10px_30px_rgba(64,224,208,0.35)]"
+          >
+            Scopri PRO
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setProModalOpen(false)}
+            className="rounded-xl px-5 py-3 text-sm font-bold text-white/55 transition hover:bg-white/[0.05] hover:text-white"
+          >
+            Continua con il piano gratuito
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
 
       {mobilePreviewOpen && (
   <div className="fixed inset-0 z-[100] bg-[#0c0d12] lg:hidden">
@@ -6748,6 +7931,7 @@ onResetIconObjectPosition={() => {
   avatarUrl={avatarUrl ?? ""}
   bgColor={bgColor ?? ""}
   bgImageUrl={bgImageUrl ?? ""}
+  bgVideoUrl={bgVideoUrl ?? null}
   buttonStyle={
     (buttonStyle ?? "solid") as "solid" | "outline" | "glass"
   }
@@ -6791,14 +7975,17 @@ onResetIconObjectPosition={() => {
     </div>
   </div>
 )}
+
 <nav className="fixed inset-x-0 bottom-0 z-[100] border-t border-white/10 bg-[#111218]/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur lg:hidden">
-  <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
+  <div className="mx-auto flex max-w-full gap-1 overflow-x-auto px-1">
     {[
       { id: "links", label: "Link", icon: "↗" },
       { id: "appearance", label: "Aspetto", icon: "✦" },
       { id: "social", label: "Social", icon: "◎" },
       { id: "analytics", label: "Dati", icon: "◫" },
+      { id: "abtest", label: "A/B", icon: "⚗" },
       { id: "preview", label: "Anteprima", icon: "📱" },
+      { id: "pro", label: "Pro", gem: true },
     ].map((item) => {
       const isActive = activeSection === item.id;
 
@@ -6813,10 +8000,12 @@ onResetIconObjectPosition={() => {
                 | "appearance"
                 | "social"
                 | "analytics"
+                | "abtest"
                 | "preview"
+                | "pro"
             )
           }
-          className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[11px] font-bold transition active:scale-95 ${
+          className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-xl px-3 text-[11px] font-bold transition active:scale-95 ${
             isActive
               ? "bg-[#00d084]/15 text-[#5cf0bd]"
               : "text-white/45 active:bg-white/10"
@@ -6827,10 +8016,46 @@ onResetIconObjectPosition={() => {
               isActive ? "text-[#00d084]" : "text-white/55"
             }`}
           >
-            {item.icon}
+            {item.gem ? (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                className="mx-auto block h-5 w-5 shrink-0"
+                aria-hidden="true"
+              >
+                <defs>
+                  <linearGradient
+                    id="mobileGemIcon"
+                    x1="5"
+                    y1="4"
+                    x2="19"
+                    y2="20"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0%" stopColor="#effffc" />
+                    <stop offset="24%" stopColor="#aafbf0" />
+                    <stop offset="52%" stopColor="#3bddca" />
+                    <stop offset="100%" stopColor="#056963" />
+                  </linearGradient>
+                </defs>
+                <path
+                  d="M6.4 5.25h11.2l3 4.15L12 19.85 3.4 9.4l3-4.15Z"
+                  fill="url(#mobileGemIcon)"
+                  stroke="#d9fffa"
+                  strokeWidth="0.95"
+                  strokeLinejoin="round"
+                />
+                <path d="M6.4 5.25h11.2l-2.7 4.15H9.1L6.4 5.25Z" fill="#b8fff6" />
+                <path d="M3.4 9.4h17.2L12 19.85 3.4 9.4Z" fill="#078f88" />
+                <path d="m3.4 9.4 8.6 10.45V9.4H3.4Z" fill="#25c5b6" />
+                <path d="M12 9.4v10.45l8.6-10.45H12Z" fill="#056963" />
+              </svg>
+            ) : (
+              item.icon
+            )}
           </span>
 
-          <span>{item.label}</span>
+          <span className="whitespace-nowrap">{item.label}</span>
         </button>
       );
     })}

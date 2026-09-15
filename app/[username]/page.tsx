@@ -26,6 +26,7 @@ type Profile = {
   avatar_position_x: number | null;
   bg_color: string | null;
   bg_image_url: string | null;
+  bg_video_url: string | null;
   button_style: string;
   display_name_color: string | null;
   username_color: string | null;
@@ -98,7 +99,10 @@ function isLinkActive(link: BioLink) {
 function pickOneVariantPerAbGroup(links: BioLink[]) {
   const activeLinks = links.filter(isLinkActive);
 
+  // Link senza A/B: li teniamo tutti
   const nonAbLinks = activeLinks.filter((link) => !link.ab_group);
+
+  // Link con A/B: li raggruppiamo per ab_group
   const abLinks = activeLinks.filter((link) => link.ab_group);
 
   const abGroups = new Map<string, BioLink[]>();
@@ -113,6 +117,7 @@ function pickOneVariantPerAbGroup(links: BioLink[]) {
     abGroups.set(link.ab_group, existing);
   }
 
+  // Per ogni gruppo A/B, scegliamo UNA sola variante a caso
   const chosen: BioLink[] = [];
 
   for (const groupLinks of abGroups.values()) {
@@ -124,6 +129,7 @@ function pickOneVariantPerAbGroup(links: BioLink[]) {
     chosen.push(groupLinks[randomIndex]);
   }
 
+  // Risultato: tutti i link senza A/B + una sola variante per ogni gruppo A/B
   return [...nonAbLinks, ...chosen];
 }
 
@@ -159,18 +165,21 @@ if (!supabaseUrl || !supabaseAnonKey) {
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
   const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select(
-      "id, username, display_name, bio, avatar_url, avatar_width, avatar_height, avatar_position_x, avatar_position_y, bg_color, bg_image_url, button_style, social_position, display_name_color, username_color, bio_color, display_name_size, bio_size"
-    )
-    .eq("username", username.toLowerCase())
-    .maybeSingle();
+  .from("profiles")
+  .select(
+    "id, username, display_name, bio, avatar_url, avatar_width, avatar_height, avatar_position_x, avatar_position_y, bg_color, bg_image_url, bg_video_url, button_style, social_position, display_name_color, username_color, bio_color, display_name_size, bio_size"
+  )
+  .eq("username", username.toLowerCase())
+  .maybeSingle();
 
   if (profileError || !profile) {
     notFound();
   }
 
   const publicProfile = profile as Profile;
+  console.log("publicProfile.bg_video_url:", publicProfile.bg_video_url);
+console.log("publicProfile.bg_image_url:", publicProfile.bg_image_url);
+console.log("publicProfile.bg_color:", publicProfile.bg_color);
 
   const [linksResult, productsResult, socialLinksResult] = await Promise.all([
     supabase
@@ -226,6 +235,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
       : "footer";
 
   const linksToShow = pickOneVariantPerAbGroup(publicLinks);
+  const hasContent = linksToShow.length > 0 || publicProducts.length > 0;
 
   function formatPrice(cents: number, currency: string) {
     const locale =
@@ -241,273 +251,287 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
     }).format(cents / 100);
   }
 
-  const hasContent = linksToShow.length > 0 || publicProducts.length > 0;
-
-  const bgStyle: React.CSSProperties = publicProfile.bg_image_url
-    ? {
-        backgroundImage: `url(${publicProfile.bg_image_url})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }
-    : publicProfile.bg_color
-      ? {
-          background: publicProfile.bg_color,
-        }
-      : {};
-
   return (
-  <main
-    className="min-h-screen px-6 py-12 text-white"
-    style={bgStyle}
-  >
-    <ProfileViewTracker profileId={publicProfile.id} />
-
-    <div className="mx-auto flex w-full max-w-xl flex-col items-center">
-      <Link
-        href="/"
-        className="mb-8 text-3xl font-black tracking-tight text-white/60 transition hover:text-white"
+  <main className="relative min-h-screen px-6 py-12 text-white">
+    {/* Sfondo: video > immagine > colore */}
+    {publicProfile.bg_video_url ? (
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="absolute inset-0 h-full w-full object-cover"
+        style={{ zIndex: 0 }}
       >
-        bio<span className="text-[#00d084]">linkr</span>
-      </Link>
-
-      <section className="flex w-full flex-col items-center text-center">
-  {publicProfile.avatar_url ? (
-    <div
-      className="mx-auto flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15"
-      // h-24 w-24 = 96px fissi, come dashboard e preview
-    >
-      <img
-        src={publicProfile.avatar_url}
-        alt={publicProfile.display_name}
-        draggable={false}
-        className="select-none object-cover"
+        <source src={publicProfile.bg_video_url} type="video/mp4" />
+        <source src={publicProfile.bg_video_url} type="video/webm" />
+      </video>
+    ) : publicProfile.bg_image_url ? (
+      <div
+        className="absolute inset-0 h-full w-full"
         style={{
-          width: `${publicProfile.avatar_width ?? 120}px`,
-          height: `${publicProfile.avatar_width ?? 120}px`,
-          objectPosition: `${publicProfile.avatar_position_x ?? 50}% 50%`,
-          pointerEvents: "none",
-          userSelect: "none",
+          backgroundImage: `url(${publicProfile.bg_image_url})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          zIndex: 0,
         }}
       />
-    </div>
-  ) : (
-    <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-[#00d084] text-3xl font-black text-[#07100d]">
-      {publicProfile.display_name ? publicProfile.display_name.charAt(0).toUpperCase() : "B"}
-    </div>
-  )}
+    ) : (
+      <div
+        className="absolute inset-0 h-full w-full"
+        style={{
+          backgroundColor: publicProfile.bg_color ?? "#0c0d12",
+          zIndex: 0,
+        }}
+      />
+    )}
 
-        <h1
-          className={`mt-6 font-black tracking-tight ${
-            publicProfile.display_name_size || "text-4xl"
-          } text-center sm:text-5xl`}
-          style={{
-            color: publicProfile.display_name_color || "#ffffff",
-          }}
+    {/* Contenuto sopra lo sfondo */}
+    <div className="relative z-10">
+      <ProfileViewTracker profileId={publicProfile.id} />
+
+      <div className="mx-auto flex w-full max-w-xl flex-col items-center">
+        <Link
+          href="/"
+          className="mb-8 text-3xl font-black tracking-tight text-white/60 transition hover:text-white"
         >
-          {publicProfile.display_name}
-        </h1>
+          bio<span className="text-[#00d084]">linkr</span>
+        </Link>
 
-        <p
-          className="mt-3 text-lg"
-          style={{
-            color: publicProfile.username_color || "#00d084",
-          }}
-        >
-          @{publicProfile.username}
-        </p>
+        <section className="flex w-full flex-col items-center text-center">
+          {publicProfile.avatar_url ? (
+            <div
+              className="mx-auto flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15"
+            >
+              <img
+                src={publicProfile.avatar_url}
+                alt={publicProfile.display_name}
+                draggable={false}
+                className="select-none object-cover"
+                style={{
+                  width: `${publicProfile.avatar_width ?? 120}px`,
+                  height: `${publicProfile.avatar_width ?? 120}px`,
+                  objectPosition: `${publicProfile.avatar_position_x ?? 50}% 50%`,
+                  pointerEvents: "none",
+                  userSelect: "none",
+                }}
+              />
+            </div>
+          ) : (
+            <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-[#00d084] text-3xl font-black text-[#07100d]">
+              {publicProfile.display_name
+                ? publicProfile.display_name.charAt(0).toUpperCase()
+                : "B"}
+            </div>
+          )}
 
-        {publicProfile.bio && (
-          <p
-            className={`mx-auto mt-6 max-w-md whitespace-pre-wrap leading-relaxed ${
-              publicProfile.bio_size || "text-base"
-            }`}
+          <h1
+            className={`mt-6 font-black tracking-tight ${
+              publicProfile.display_name_size || "text-4xl"
+            } text-center sm:text-5xl`}
             style={{
-              color: publicProfile.bio_color || "rgba(255,255,255,0.7)",
+              color: publicProfile.display_name_color || "#ffffff",
             }}
           >
-            {publicProfile.bio}
-          </p>
-        )}
+            {publicProfile.display_name}
+          </h1>
 
-        {socialPosition === "below_profile" &&
-          publicSocialLinks.length > 0 && (
+          <p
+            className="mt-3 text-lg"
+            style={{
+              color: publicProfile.username_color || "#00d084",
+            }}
+          >
+            @{publicProfile.username}
+          </p>
+
+          {publicProfile.bio && (
+            <p
+              className={`mx-auto mt-6 max-w-md whitespace-pre-wrap leading-relaxed ${
+                publicProfile.bio_size || "text-base"
+              }`}
+              style={{
+                color: publicProfile.bio_color || "rgba(255,255,255,0.7)",
+              }}
+            >
+              {publicProfile.bio}
+            </p>
+          )}
+
+          {socialPosition === "below_profile" && publicSocialLinks.length > 0 && (
             <SocialIcons
               links={publicSocialLinks}
               className="mt-6 justify-center"
             />
           )}
-      </section>
+        </section>
 
-      {hasContent && (
-        <section className="mt-10 w-full space-y-10">
-          {linksToShow.length > 0 && (
-            <div>
-              <h2 className="mb-4 text-center text-sm font-bold uppercase tracking-[0.25em] text-white/50">
-                Link
-              </h2>
+        {hasContent && (
+          <section className="mt-10 w-full space-y-10">
+            {linksToShow.length > 0 && (
+              <div>
+                <h2 className="mb-4 text-center text-sm font-bold uppercase tracking-[0.25em] text-white/50">
+                  Link
+                </h2>
 
-              <div className="space-y-3">
-                {linksToShow.map((link) => {
-                  const baseClasses = getButtonClasses(
-                    publicProfile.button_style ?? "solid"
-                  );
+                <div className="space-y-3">
+                  {linksToShow.map((link) => {
+                    const baseClasses = getButtonClasses(
+                      publicProfile.button_style ?? "solid"
+                    );
 
-                  return link.display_type === "image" && link.image_url ? (
-                    <TrackedPublicLink
-                      key={link.id}
-                      linkId={link.id}
-                      href={link.url}
-                      hoverEffect={link.hover_effect || "none"}
-                      ariaLabel={link.title || "Apri link"}
-                      className="relative block w-full overflow-hidden rounded-2xl border border-white/10 transition hover:scale-[1.01] hover:border-[#00d084]"
-                      style={{
-                        background: link.background_color || "#0c0d12",
-                      }}
-                    >
-                      <img
-                        src={link.image_url}
-                        alt={link.title || ""}
-                        className="block w-full object-cover object-center"
+                    return link.display_type === "image" && link.image_url ? (
+                      <TrackedPublicLink
+                        key={link.id}
+                        linkId={link.id}
+                        href={link.url}
+                        hoverEffect={link.hover_effect || "none"}
+                        ariaLabel={link.title || "Apri link"}
+                        className="relative block w-full overflow-hidden rounded-2xl border border-white/10 transition hover:scale-[1.01] hover:border-[#00d084]"
                         style={{
-                          height: `${link.image_height ?? 220}px`,
+                          background: link.background_color || "#0c0d12",
                         }}
-                      />
-                    </TrackedPublicLink>
-                  ) : (
-                    <TrackedPublicLink
-                      key={link.id}
-                      linkId={link.id}
-                      href={link.url}
-                      hoverEffect={link.hover_effect || "none"}
-                      className={`group relative flex w-full items-center justify-center rounded-xl px-4 py-4 font-black transition ${baseClasses}`}
-                      style={
-                        link.background_color
-                          ? { background: link.background_color }
-                          : undefined
-                      }
-                    >
-                      {link.icon_url && (
-                        <span
-                          className="absolute left-3 top-1/2 flex -translate-y-1/2 items-center justify-center overflow-hidden rounded-full border border-black/10 shadow-[0_2px_8px_rgba(0,0,0,0.16)]"
+                      >
+                        <img
+                          src={link.image_url}
+                          alt={link.title || ""}
+                          className="block w-full object-cover object-center"
                           style={{
-                            width: "36px",
-                            height: "36px",
-                            backgroundColor: link.background_color || "rgba(255,255,255,0.15)",
+                            height: `${link.image_height ?? 220}px`,
                           }}
-                        >
-                          <img
-                            src={link.icon_url}
-                            alt=""
-                            className="h-full w-full"
-                            style={{
-                              width: `${link.icon_size ?? 24}px`,
-                              height: `${link.icon_size ?? 24}px`,
-                              objectFit: "cover",
-                              objectPosition: `${link.icon_object_x ?? 50}% ${link.icon_object_y ?? 50}%`,
-                            }}
-                          />
-                        </span>
-                      )}
-
-                      <span
-                        className="relative z-10 px-12 text-center"
+                        />
+                      </TrackedPublicLink>
+                    ) : (
+                      <TrackedPublicLink
+                        key={link.id}
+                        linkId={link.id}
+                        href={link.url}
+                        hoverEffect={link.hover_effect || "none"}
+                        className={`group relative flex w-full items-center justify-center rounded-xl px-4 py-4 font-black transition ${baseClasses}`}
                         style={
-                          link.text_color
-                            ? { color: link.text_color }
+                          link.background_color
+                            ? { background: link.background_color }
                             : undefined
                         }
                       >
-                        {link.title}
-                      </span>
-                    </TrackedPublicLink>
-                  );
-                })}
+                        {link.icon_url && (
+                          <span
+                            className="absolute left-3 top-1/2 flex -translate-y-1/2 items-center justify-center overflow-hidden rounded-full border border-black/10 shadow-[0_2px_8px_rgba(0,0,0,0.16)]"
+                            style={{
+                              width: "36px",
+                              height: "36px",
+                              backgroundColor:
+                                link.background_color || "rgba(255,255,255,0.15)",
+                            }}
+                          >
+                            <img
+                              src={link.icon_url}
+                              alt=""
+                              className="h-full w-full"
+                              style={{
+                                width: `${link.icon_size ?? 24}px`,
+                                height: `${link.icon_size ?? 24}px`,
+                                objectFit: "cover",
+                                objectPosition: `${link.icon_object_x ?? 50}% ${link.icon_object_y ?? 50}%`,
+                              }}
+                            />
+                          </span>
+                        )}
+
+                        <span
+                          className="relative z-10 px-12 text-center"
+                          style={
+                            link.text_color
+                              ? { color: link.text_color }
+                              : undefined
+                          }
+                        >
+                          {link.title}
+                        </span>
+                      </TrackedPublicLink>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {publicProducts.length > 0 && (
-            <div>
-              <h2 className="mb-4 text-center text-sm font-bold uppercase tracking-[0.25em] text-white/50">
-                Prodotti
-              </h2>
+            {publicProducts.length > 0 && (
+              <div>
+                <h2 className="mb-4 text-center text-sm font-bold uppercase tracking-[0.25em] text-white/50">
+                  Prodotti
+                </h2>
 
-              <div className="grid gap-4 sm:grid-cols-1">
-                {publicProducts.map((product) => (
-                  <div
-                    key={product.id}
-                    className="overflow-hidden rounded-2xl border border-white/10 bg-[#17181e]"
-                  >
-                    {product.cover_image_url && (
-                      <img
-                        src={product.cover_image_url}
-                        alt=""
-                        className="h-40 w-full object-cover"
-                      />
-                    )}
+                <div className="grid gap-4 sm:grid-cols-1">
+                  {publicProducts.map((product) => (
+                    <div
+                      key={product.id}
+                      className="overflow-hidden rounded-2xl border border-white/10 bg-[#17181e]"
+                    >
+                      {product.cover_image_url && (
+                        <img
+                          src={product.cover_image_url}
+                          alt=""
+                          className="h-40 w-full object-cover"
+                        />
+                      )}
 
-                    <div className="p-5">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-lg font-black text-white">
-                            {product.title}
-                          </p>
-
-                          {product.description && (
-                            <p className="mt-1 line-clamp-2 text-sm text-white/60">
-                              {product.description}
+                      <div className="p-5">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-lg font-black text-white">
+                              {product.title}
                             </p>
-                          )}
 
-                          <p className="mt-3 text-base font-bold text-[#00d084]">
-                            {formatPrice(
-                              product.price_cents,
-                              product.currency
+                            {product.description && (
+                              <p className="mt-1 line-clamp-2 text-sm text-white/60">
+                                {product.description}
+                              </p>
                             )}
-                          </p>
-                        </div>
 
-                        <div className="shrink-0">
-                          <ProductCheckoutModal
-                            product={product}
-                            profileId={publicProfile.id}
-                          />
+                            <p className="mt-3 text-base font-bold text-[#00d084]">
+                              {formatPrice(product.price_cents, product.currency)}
+                            </p>
+                          </div>
+
+                          <div className="shrink-0">
+                            <ProductCheckoutModal
+                              product={product}
+                              profileId={publicProfile.id}
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
+            )}
+          </section>
+        )}
+
+        {!hasContent && (
+          <div className="mt-10 w-full">
+            <div className="rounded-2xl border border-white/10 bg-[#17181e] px-6 py-5 text-center text-sm text-white/45">
+              Questo profilo non ha link o prodotti attivi in questo momento.
             </div>
-          )}
-        </section>
-      )}
-
-      {!hasContent && (
-        <div className="mt-10 w-full">
-          <div className="rounded-2xl border border-white/10 bg-[#17181e] px-6 py-5 text-center text-sm text-white/45">
-            Questo profilo non ha link o prodotti attivi in questo momento.
           </div>
-        </div>
-      )}
+        )}
 
-      {socialPosition === "footer" && publicSocialLinks.length > 0 && (
-        <div className="mt-10 w-full">
-          <SocialIcons
-            links={publicSocialLinks}
-            className="justify-center"
-          />
-        </div>
-      )}
+        {socialPosition === "footer" && publicSocialLinks.length > 0 && (
+          <div className="mt-10 w-full">
+            <SocialIcons links={publicSocialLinks} className="justify-center" />
+          </div>
+        )}
 
-      <footer className="mt-12 w-full border-t border-white/10 pt-6 text-center">
-        <p className="text-xs text-white/40">
-          Creato con{" "}
-          <span className="font-bold text-[#00d084]">
-            bio<span className="text-[#00d084]">linkr</span>
-          </span>
-        </p>
-      </footer>
+        <footer className="mt-12 w-full border-t border-white/10 pt-6 text-center">
+          <p className="text-xs text-white/40">
+            Creato con{" "}
+            <span className="font-bold text-[#00d084]">
+              bio<span className="text-[#00d084]">linkr</span>
+            </span>
+          </p>
+        </footer>
+      </div>
     </div>
   </main>
 );
