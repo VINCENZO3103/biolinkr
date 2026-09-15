@@ -27,6 +27,7 @@ type Profile = {
   bg_color: string | null;
   bg_image_url: string | null;
   bg_video_url: string | null;
+  video_opacity: number | null;
   button_style: string;
   display_name_color: string | null;
   username_color: string | null;
@@ -167,7 +168,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
   const { data: profile, error: profileError } = await supabase
   .from("profiles")
   .select(
-    "id, username, display_name, bio, avatar_url, avatar_width, avatar_height, avatar_position_x, avatar_position_y, bg_color, bg_image_url, bg_video_url, button_style, social_position, display_name_color, username_color, bio_color, display_name_size, bio_size"
+    "id, username, display_name, bio, avatar_url, avatar_width, avatar_height, avatar_position_x, avatar_position_y, bg_color, bg_image_url, bg_video_url, button_style, social_position, display_name_color, username_color, bio_color, display_name_size, bio_size, video_opacity, plan, subscription_status"
   )
   .eq("username", username.toLowerCase())
   .maybeSingle();
@@ -255,17 +256,20 @@ console.log("publicProfile.bg_color:", publicProfile.bg_color);
   <main className="relative min-h-screen px-6 py-12 text-white">
     {/* Sfondo: video > immagine > colore */}
     {publicProfile.bg_video_url ? (
-      <video
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="absolute inset-0 h-full w-full object-cover"
-        style={{ zIndex: 0 }}
-      >
-        <source src={publicProfile.bg_video_url} type="video/mp4" />
-        <source src={publicProfile.bg_video_url} type="video/webm" />
-      </video>
+  <video
+    autoPlay
+    loop
+    muted
+    playsInline
+    className="absolute inset-0 h-full w-full object-cover"
+    style={{
+      zIndex: 0,
+      opacity: publicProfile.video_opacity ?? 0.6,
+    }}
+  >
+    <source src={publicProfile.bg_video_url} type="video/mp4" />
+    <source src={publicProfile.bg_video_url} type="video/webm" />
+  </video>
     ) : publicProfile.bg_image_url ? (
       <div
         className="absolute inset-0 h-full w-full"

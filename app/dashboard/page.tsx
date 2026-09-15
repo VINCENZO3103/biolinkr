@@ -1438,6 +1438,9 @@ const [displayNameSize, setDisplayNameSize] = useState("text-4xl");
 const [bioSize, setBioSize] = useState("text-base");
   const [bio, setBio] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
+  const [videoOpacity, setVideoOpacity] = useState(0.6);
+  // DEBUG
+console.log("videoOpacity stato:", videoOpacity);
 // Oggetto profilo derivato (per ora con piano fisso)
 const profile: { plan: "free" | "premium"; bgvideourl: string | null } = {
   plan: "free",
@@ -1649,6 +1652,7 @@ const [isDraggingAvatar, setIsDraggingAvatar] = useState(false);
   const [proModalOpen, setProModalOpen] = useState(false);
 const [lockedFeature, setLockedFeature] = useState("Sfondi video");
   const [plan, setPlan] = useState<"free" | "premium">("free");
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string>("free");
   const [loading, setLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -1686,14 +1690,15 @@ const [lockedFeature, setLockedFeature] = useState("Sfondi video");
     const { data: profile, error: profileError } = await supabase
   .from("profiles")
   .select(
-    "id, username, display_name, bio, avatar_url, avatar_width, avatar_height, avatar_position_x, avatar_position_y, bg_color, bg_image_url, bg_video_url, button_style, social_position, display_name_color, username_color, bio_color, display_name_size, display_name_align, bio_size, plan"
+    "id, username, display_name, bio, avatar_url, avatar_width, avatar_height, avatar_position_x, avatar_position_y, bg_color, bg_image_url, bg_video_url, button_style, social_position, display_name_color, username_color, bio_color, display_name_size, display_name_align, bio_size, plan, video_opacity, subscription_status"
   )
   .eq("id", user.id)
   .maybeSingle();
 
   console.log("PROFILO CARICATO:", profile);
 
-  setPlan(profile?.plan === "premium" ? "premium" : "free");
+setPlan(profile?.plan === "premium" ? "premium" : "free");
+setSubscriptionStatus(profile?.subscription_status ?? "free");
 
     if (profileError) {
       setMessage(
@@ -1703,6 +1708,10 @@ const [lockedFeature, setLockedFeature] = useState("Sfondi video");
 
     if (profile) {
   const savedProfile = profile as unknown as Profile;
+
+  if (profile?.video_opacity != null) {
+  setVideoOpacity(profile.video_opacity);
+}
 
   // Imposta il piano
   setPlan((savedProfile as Profile & { plan?: "free" | "premium" }).plan === "premium" ? "premium" : "free");
@@ -2621,6 +2630,7 @@ async function handleSaveProfile(event: FormEvent<HTMLFormElement>) {
         bg_image_url: cleanBgImageUrl,
         bg_video_url: cleanBgVideoUrl, // ← aggiungi questa riga
         button_style: cleanButtonStyle,
+        video_opacity: videoOpacity,
         bio_size: cleanBioSize,
         social_position: cleanSocialPosition,
         display_name_color: cleanDisplayNameColor,
@@ -2634,7 +2644,7 @@ async function handleSaveProfile(event: FormEvent<HTMLFormElement>) {
       }
     )
     .select(
-      "username, display_name, bio, avatar_url, avatar_width, avatar_position_x, bg_color, bg_image_url, bg_video_url, button_style, bio_size, social_position, display_name_color, username_color, bio_color, display_name_size"
+      "username, display_name, bio, avatar_url, avatar_width, avatar_position_x, bg_color, bg_image_url, bg_video_url, button_style, bio_size, social_position, display_name_color, username_color, bio_color, display_name_size, video_opacity"
     )
     .single();
 
@@ -2663,6 +2673,9 @@ async function handleSaveProfile(event: FormEvent<HTMLFormElement>) {
     setBgColor(savedProfileData.bg_color ?? "");
     setBgImageUrl(savedProfileData.bg_image_url ?? "");
     setBgVideoUrl(savedProfileData.bg_video_url ?? null); // ← aggiungi questa riga
+    if (savedProfileData.video_opacity != null) {
+  setVideoOpacity(savedProfileData.video_opacity);
+}
     setButtonStyle(savedProfileData.button_style ?? "solid");
     setBioSize(savedProfileData.bio_size ?? "text-base");
     setSocialPosition(
@@ -4574,6 +4587,7 @@ const previewProducts = products.map((p) => ({
                   bgColor={bgColor ?? ""}
                   bgImageUrl={bgImageUrl ?? ""}
                   bgVideoUrl={bgVideoUrl}
+                  videoOpacity={videoOpacity}
                   buttonStyle={(buttonStyle ?? "solid") as "solid" | "outline" | "glass"}
                   displayNameColor={displayNameColor ?? "#ffffff"}
                   usernameColor={usernameColor ?? "#00d084"}
@@ -5503,8 +5517,32 @@ const previewProducts = products.map((p) => ({
         Rimuovi video
       </button>
     )}
+
+    {bgVideoUrl && (
+      <div className="mt-4">
+        <label htmlFor="video-opacity" className="block text-sm font-medium text-white/70">
+          Opacità sfondo video
+        </label>
+
+        <input
+          id="video-opacity"
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={videoOpacity}
+          onChange={(e) => setVideoOpacity(Number(e.target.value))}
+          className="mt-2 w-full accent-[#00d084]"
+        />
+
+        <p className="mt-1 text-xs text-white/50">
+          Valore: {(videoOpacity * 100).toFixed(0)}%
+        </p>
+      </div>
+    )}
   </div>
 )}
+
     <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-white/10 bg-[#0c0d12] p-4 sm:flex-row sm:items-center sm:justify-between">
   <p className="text-xs leading-5 text-white/45">
     Le modifiche saranno visibili dopo il salvataggio.
@@ -7353,6 +7391,7 @@ onResetIconObjectPosition={() => {
     bgColor={bgColor ?? ""}
     bgImageUrl={bgImageUrl ?? ""}
     bgVideoUrl={bgVideoUrl}
+    videoOpacity={videoOpacity}
     buttonStyle={(buttonStyle ?? "solid") as "solid" | "outline" | "glass"}
     displayNameColor={displayNameColor ?? "#ffffff"}
     usernameColor={usernameColor ?? "#00d084"}
@@ -7536,13 +7575,9 @@ onResetIconObjectPosition={() => {
           </div>
 
           <div className="rounded-2xl border border-[#40e0d0]/20 bg-[#40e0d0]/[0.07] px-4 py-3 text-right">
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#8fffe9]/80">
-              Il tuo piano
-            </p>
-
             <p className="mt-1 text-lg font-black text-white">
-              {plan === "premium" ? "PRO attivo" : "Gratuito"}
-            </p>
+  {plan === "premium" || subscriptionStatus === "trialing" ? "Pro attivo" : "Gratuito"}
+</p>
           </div>
         </div>
 

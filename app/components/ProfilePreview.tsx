@@ -117,6 +117,7 @@ type ProfilePreviewProps = {
   avatarPositionX?: number;
   bgColor?: string;
   bgImageUrl?: string;
+  videoOpacity?: number;
   bgVideoUrl?: string | null;
   buttonStyle?: "solid" | "outline" | "glass";
   displayNameColor?: string;
@@ -140,6 +141,7 @@ export default function ProfilePreview({
   avatarPositionX = 50,
   bgColor = "",
   bgImageUrl,
+  videoOpacity = 0.6,
   bgVideoUrl,
   buttonStyle,
   links,
@@ -262,12 +264,16 @@ export default function ProfilePreview({
     {/* Video di sfondo (se presente) */}
 {bgVideoUrl && (
   <video
-  key={bgVideoUrl}
+    key={bgVideoUrl}
     autoPlay
     loop
     muted
     playsInline
     className="absolute inset-0 h-full w-full object-cover"
+    style={{
+        opacity: videoOpacity,
+      outline: "2px solid #00d084",
+    }}
   >
     <source src={bgVideoUrl} type="video/mp4" />
   </video>
