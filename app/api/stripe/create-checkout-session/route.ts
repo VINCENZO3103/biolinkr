@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     console.log('Stripe session created:', session.id);
 
-    return NextResponse.json({ url: session.url });
+    return NextResponse.json({ url: session.url, successPath: '/dashboard/upgrade/success' });
   } catch (error) {
     console.error('Checkout session error:', error);
     return NextResponse.json(
