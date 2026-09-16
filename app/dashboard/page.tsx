@@ -8030,13 +8030,14 @@ onResetIconObjectPosition={() => {
 <nav className="fixed inset-x-0 bottom-0 z-[100] border-t border-white/10 bg-[#111218]/95 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur lg:hidden">
   <div className="mx-auto flex max-w-full gap-1 overflow-x-auto px-1">
     {[
+      { id: "pro", label: "Pro", gem: true },
       { id: "links", label: "Link", icon: "↗" },
       { id: "appearance", label: "Aspetto", icon: "✦" },
       { id: "social", label: "Social", icon: "◎" },
       { id: "analytics", label: "Dati", icon: "◫" },
       { id: "abtest", label: "A/B", icon: "⚗" },
       { id: "preview", label: "Anteprima", icon: "📱" },
-      { id: "pro", label: "Pro", gem: true },
+
     ].map((item) => {
       const isActive = activeSection === item.id;
 
