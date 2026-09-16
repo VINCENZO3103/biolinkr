@@ -32,34 +32,35 @@ export async function POST(req: NextRequest) {
   }
 
   if (event.type === 'checkout.session.completed') {
-    console.log('🎉 checkout.session.completed received');
-    
-    const session = event.data.object as Stripe.Checkout.Session;
-    const userId = session.metadata?.userId;
+  console.log('🎉 checkout.session.completed received');
+  
+  const session = event.data.object as Stripe.Checkout.Session;
+  const userId = session.metadata?.userId;
 
-    console.log('User ID from metadata:', userId);
+  console.log('User ID from metadata:', userId);
 
-    if (!userId) {
-      console.error('❌ No userId in session metadata');
-      return NextResponse.json({ error: 'No userId' }, { status: 400 });
-    }
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .update({
-        plan: 'pro',
-        trial_ends_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      })
-      .eq('id', userId)
-      .select();
-
-    if (error) {
-      console.error('❌ Error updating user plan:', error);
-      return NextResponse.json({ error: 'Database error' }, { status: 500 });
-    }
-
-    console.log('✅ User updated to Pro:', data);
+  if (!userId) {
+    console.error('❌ No userId in session metadata');
+    return NextResponse.json({ error: 'No userId' }, { status: 400 });
   }
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({
+      plan: 'PREMIUM',
+      subscription_status: 'active',
+      subscription_end_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+    })
+    .eq('id', userId)
+    .select();
+
+  if (error) {
+    console.error('❌ Error updating user plan:', error);
+    return NextResponse.json({ error: 'Database error' }, { status: 500 });
+  }
+
+  console.log('✅ User updated to PREMIUM:', data);
+}
 
   return NextResponse.json({ received: true }, { status: 200 });
 }
