@@ -14,41 +14,51 @@ const supabase = createClient(
 );
 
 export async function POST(req: NextRequest) {
+  console.log('🔔 Webhook received!');
+  
   const body = await req.text();
   const signature = req.headers.get('stripe-signature')!;
+
+  console.log('Signature:', signature ? 'present' : 'missing');
 
   let event: Stripe.Event;
 
   try {
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    console.log('✅ Event constructed:', event.type);
   } catch (err) {
-    console.error('Webhook signature verification failed:', err);
+    console.error('❌ Webhook signature verification failed:', err);
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
   }
 
   if (event.type === 'checkout.session.completed') {
+    console.log('🎉 checkout.session.completed received');
+    
     const session = event.data.object as Stripe.Checkout.Session;
     const userId = session.metadata?.userId;
 
+    console.log('User ID from metadata:', userId);
+
     if (!userId) {
-      console.error('No userId in session metadata');
+      console.error('❌ No userId in session metadata');
       return NextResponse.json({ error: 'No userId' }, { status: 400 });
     }
 
-    const { error } = await supabase
-      .from('users')
+    const { data, error } = await supabase
+      .from('profiles')
       .update({
         plan: 'pro',
         trial_ends_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       })
-      .eq('id', userId);
+      .eq('id', userId)
+      .select();
 
     if (error) {
-      console.error('Error updating user plan:', error);
+      console.error('❌ Error updating user plan:', error);
       return NextResponse.json({ error: 'Database error' }, { status: 500 });
     }
 
-    console.log(`✅ User ${userId} upgraded to Pro`);
+    console.log('✅ User updated to Pro:', data);
   }
 
   return NextResponse.json({ received: true }, { status: 200 });
