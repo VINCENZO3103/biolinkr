@@ -6,7 +6,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2026-08-26.dahlia',
 });
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!.trim();
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -24,11 +24,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Missing signature' }, { status: 400 });
   }
 
-  console.log('Signature header:', signature);
-  console.log('Signature length:', signature.length);
-  console.log('Webhook secret length:', webhookSecret?.length);
-  console.log('Webhook secret starts with:', webhookSecret?.substring(0, 6));
-
   let event: Stripe.Event;
 
   try {
@@ -44,8 +39,6 @@ export async function POST(req: NextRequest) {
     
     const session = event.data.object as Stripe.Checkout.Session;
     const userId = session.metadata?.userId;
-
-    console.log('User ID from metadata:', userId);
 
     if (!userId) {
       console.error('❌ No userId in session metadata');
