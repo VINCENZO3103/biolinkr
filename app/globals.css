@@ -875,6 +875,17 @@ body {
   }
 }
 
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+* {
+  box-sizing: border-box;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .biolinkr-ab-variants::before,
   .biolinkr-ab-vs,
