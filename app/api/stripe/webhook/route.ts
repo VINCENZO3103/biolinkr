@@ -26,19 +26,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
   }
 
-  // Gestisci solo gli eventi che ti interessano
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object as Stripe.Checkout.Session;
-
     const userId = session.metadata?.userId;
-    const profileId = session.metadata?.profileId;
 
     if (!userId) {
       console.error('No userId in session metadata');
       return NextResponse.json({ error: 'No userId' }, { status: 400 });
     }
 
-    // Aggiorna l'utente a Pro
     const { error } = await supabase
       .from('users')
       .update({
@@ -55,6 +51,5 @@ export async function POST(req: NextRequest) {
     console.log(`✅ User ${userId} upgraded to Pro`);
   }
 
-  // Rispondi sempre con 200 OK a Stripe
   return NextResponse.json({ received: true }, { status: 200 });
 }
