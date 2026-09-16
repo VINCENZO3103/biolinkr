@@ -48,8 +48,8 @@ export async function POST(req: NextRequest) {
     const { data, error } = await supabase
       .from('profiles')
       .update({
-        plan: 'PREMIUM',
-        subscription_status: 'active',
+        plan: 'premium',
+        subscription_status: 'trialing',
         subscription_end_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
       })
       .eq('id', userId)
