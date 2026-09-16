@@ -1653,6 +1653,7 @@ const [isDraggingAvatar, setIsDraggingAvatar] = useState(false);
 const [lockedFeature, setLockedFeature] = useState("Sfondi video");
   const [plan, setPlan] = useState<"free" | "premium">("free");
   const [subscriptionStatus, setSubscriptionStatus] = useState<string>("free");
+  const [subscriptionEndDate, setSubscriptionEndDate] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -1690,7 +1691,7 @@ const [lockedFeature, setLockedFeature] = useState("Sfondi video");
     const { data: profile, error: profileError } = await supabase
   .from("profiles")
   .select(
-    "id, username, display_name, bio, avatar_url, avatar_width, avatar_height, avatar_position_x, avatar_position_y, bg_color, bg_image_url, bg_video_url, button_style, social_position, display_name_color, username_color, bio_color, display_name_size, display_name_align, bio_size, plan, video_opacity, subscription_status"
+    "id, username, display_name, bio, avatar_url, avatar_width, avatar_height, avatar_position_x, avatar_position_y, bg_color, bg_image_url, bg_video_url, button_style, social_position, display_name_color, username_color, bio_color, display_name_size, display_name_align, bio_size, plan, video_opacity, subscription_status, subscription_end_date"
   )
   .eq("id", user.id)
   .maybeSingle();
@@ -1699,6 +1700,7 @@ const [lockedFeature, setLockedFeature] = useState("Sfondi video");
 
 setPlan(profile?.plan === "premium" ? "premium" : "free");
 setSubscriptionStatus(profile?.subscription_status ?? "free");
+setSubscriptionEndDate(profile?.subscription_end_date ?? null);
 
     if (profileError) {
       setMessage(
@@ -7575,10 +7577,24 @@ onResetIconObjectPosition={() => {
           </div>
 
           <div className="rounded-2xl border border-[#40e0d0]/20 bg-[#40e0d0]/[0.07] px-4 py-3 text-right">
-            <p className="mt-1 text-lg font-black text-white">
-  {plan === "premium" || subscriptionStatus === "trialing" ? "Pro attivo" : "Gratuito"}
-</p>
-          </div>
+  <p className="text-lg font-black text-white">
+    {plan === "premium" || subscriptionStatus === "trialing"
+      ? "Pro attivo"
+      : "Gratuito"}
+  </p>
+
+  {(plan === "premium" || subscriptionStatus === "trialing") &&
+    subscriptionEndDate && (
+      <p className="mt-1 text-xs text-white/55">
+        {subscriptionStatus === "trialing" ? "Prova gratuita fino al " : "Rinnovo il "}
+        {new Date(subscriptionEndDate).toLocaleDateString("it-IT", {
+          day: "2-digit",
+          month: "long",
+          year: "numeric",
+        })}
+      </p>
+    )}
+</div>
         </div>
 
         {/* Riscatta codice PRO */}
