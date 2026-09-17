@@ -113,6 +113,7 @@ type ProfilePreviewProps = {
   username?: string;
   bio?: string;
   avatarUrl?: string;
+  bannerImageUrl?: string;
   avatarWidth?: number;
   avatarPositionX?: number;
   bgColor?: string;
@@ -125,6 +126,7 @@ type ProfilePreviewProps = {
   bioColor?: string;
   displayNameSize?: string;
   bioSize?: string;
+  profileLayout?: "classic" | "hero" | "banner" | "shape";
   links: BioLink[];
   products: Product[];
   socialLinks?: PreviewSocialLink[];
@@ -137,6 +139,7 @@ export default function ProfilePreview({
   username = "",
   bio = "",
   avatarUrl = "",
+  bannerImageUrl = "",
   avatarWidth = 120,
   avatarPositionX = 50,
   bgColor = "",
@@ -154,6 +157,7 @@ export default function ProfilePreview({
   bioColor = "rgba(255,255,255,0.7)",
   displayNameSize = "text-4xl",
   bioSize = "text-base",
+  profileLayout = "classic",
 }: ProfilePreviewProps) {
   const [showProducts, setShowProducts] = useState(false);
   const draggedSocialIdRef = useRef<string | null>(null);
@@ -292,89 +296,229 @@ export default function ProfilePreview({
 )} */}
 
     <div className="relative z-10 flex min-h-full flex-col items-center px-6 pb-10 pt-10">
-      {avatarUrl ? (
-        <div
-          className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15"
-        >
-          <img
-            src={avatarUrl}
-            alt={`Foto profilo di ${displayName} su BioLinkr`}
-            draggable={false}
-            onDragStart={(event) => event.preventDefault()}
-            className="select-none object-cover"
-            style={{
-              width: `${avatarWidth ?? 120}px`,
-              height: `${avatarWidth ?? 120}px`,
-              objectPosition: `${avatarPositionX ?? 50}% 50%`,
-              pointerEvents: "none",
-              userSelect: "none",
-            }}
-          />
-        </div>
-      ) : (
-        <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#00d084] text-3xl font-black text-[#07100d]">
-          {displayName ? displayName.charAt(0).toUpperCase() : "B"}
-        </div>
-      )}
+      {/* CLASSIC */}
+{profileLayout === "classic" && (
+  <>
+    {avatarUrl ? (
+      <img
+        src={avatarUrl}
+        alt={`Foto profilo di ${displayName || "BioLinkr"}`}
+        className="h-20 w-20 rounded-full border border-white/15 object-cover"
+      />
+    ) : (
+      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#00d084] text-3xl font-black text-[#07100d]">
+        {displayName ? displayName.charAt(0).toUpperCase() : "B"}
+      </div>
+    )}
 
+    <h1
+      className={`mt-5 text-center font-black ${displayNameSize}`}
+      style={{ color: displayNameColor }}
+    >
+      {displayName || "Il tuo nome"}
+    </h1>
+
+    <p
+      className="mt-1 text-sm font-medium"
+      style={{ color: usernameColor }}
+    >
+      @{username || "tuo_username"}
+    </p>
+
+    {bio && (
+      <p
+        className={`mt-4 whitespace-pre-wrap text-center ${bioSize}`}
+        style={{ color: bioColor }}
+      >
+        {bio}
+      </p>
+    )}
+  </>
+)}
+
+{/* HERO */}
+{profileLayout === "hero" && (
+  <div className="relative -mx-6 -mt-10 w-[calc(100%+3rem)] overflow-hidden rounded-b-[2rem] border-b border-white/10 px-6 pb-7 pt-36 text-center">
+    {avatarUrl ? (
+      <>
+        <img
+          src={avatarUrl}
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-sm"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-[#0c0d12]/35 to-[#0c0d12]" />
+        <img
+          src={avatarUrl}
+          alt={`Foto profilo di ${displayName || "BioLinkr"}`}
+          className="absolute left-1/2 top-5 h-32 w-32 -translate-x-1/2 object-cover object-top drop-shadow-[0_16px_22px_rgba(0,0,0,0.65)]"
+        />
+      </>
+    ) : (
+      <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-br from-[#00d084]/45 via-[#0c0d12] to-[#40e0d0]/25" />
+    )}
+
+    <div className="relative z-10">
       <h1
-        className={`mt-5 text-center font-black ${
-          displayNameSize || "text-2xl"
-        }`}
-        style={{
-          color: displayNameColor || "#ffffff",
-        }}
+        className={`text-center font-black ${displayNameSize}`}
+        style={{ color: displayNameColor }}
       >
         {displayName || "Il tuo nome"}
       </h1>
 
       <p
         className="mt-1 text-sm font-medium"
-        style={{
-          color: usernameColor || "#00d084",
-        }}
+        style={{ color: usernameColor }}
       >
-        @{username}
+        @{username || "tuo_username"}
       </p>
 
       {bio && (
         <p
-          className={`mt-4 whitespace-pre-wrap text-center ${
-            bioSize || "text-base"
-          }`}
-          style={{
-            color: bioColor || "rgba(255,255,255,0.7)",
-          }}
+          className={`mt-4 whitespace-pre-wrap text-center ${bioSize}`}
+          style={{ color: bioColor }}
         >
           {bio}
         </p>
       )}
+    </div>
+  </div>
+)}
 
-      {socialPosition === "below_profile" && socialLinks.length > 0 && (
-        <DndContext
-          sensors={socialSensors}
-          collisionDetection={closestCenter}
-          onDragStart={(event) => {
-            draggedSocialIdRef.current = String(event.active.id);
-          }}
-          onDragEnd={handlePreviewSocialDragEnd}
-        >
-          <SortableContext
-            items={socialLinks.map((socialLink) => socialLink.id)}
-            strategy={horizontalListSortingStrategy}
-          >
-            <div className="mt-5 flex flex-wrap justify-center gap-2">
-              {socialLinks.map((socialLink) => (
-                <SortableSocialIcon
-                  key={socialLink.id}
-                  socialLink={socialLink}
-                  draggedSocialIdRef={draggedSocialIdRef}
-                />
-              ))}
-            </div>
-          </SortableContext>
-        </DndContext>
+{/* BANNER */}
+{profileLayout === "banner" && (
+  <div className="relative -mx-6 -mt-10 w-[calc(100%+3rem)] overflow-hidden rounded-b-[2rem] border-b border-white/10 bg-[#0c0d12] pb-7 text-center">
+    <div className="relative h-28 bg-gradient-to-br from-[#00d084]/35 via-[#0c0d12] to-[#40e0d0]/25">
+      {(bannerImageUrl || avatarUrl) ? (
+        <>
+          <img
+            src={bannerImageUrl || avatarUrl}
+            alt=""
+            aria-hidden="true"
+            className="h-full w-full scale-110 object-cover opacity-75"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0c0d12] via-transparent to-black/10" />
+        </>
+      ) : (
+        <div className="absolute inset-0 bg-gradient-to-br from-[#00d084]/35 via-[#0c0d12] to-[#40e0d0]/25" />
       )}
+    </div>
+
+    <div className="relative px-6">
+      <div className="-mt-10 flex justify-center">
+        {avatarUrl ? (
+          <img
+            src={avatarUrl}
+            alt={`Foto profilo di ${displayName || "BioLinkr"}`}
+            className="h-20 w-20 rounded-full border-4 border-[#0c0d12] object-cover shadow-xl"
+          />
+        ) : (
+          <div className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-[#0c0d12] bg-[#00d084] text-3xl font-black text-[#07100d] shadow-xl">
+            {displayName ? displayName.charAt(0).toUpperCase() : "B"}
+          </div>
+        )}
+      </div>
+
+      <h1
+        className={`mt-4 text-center font-black ${displayNameSize}`}
+        style={{ color: displayNameColor }}
+      >
+        {displayName || "Il tuo nome"}
+      </h1>
+
+      <p
+        className="mt-1 text-sm font-medium"
+        style={{ color: usernameColor }}
+      >
+        @{username || "tuo_username"}
+      </p>
+
+      {bio && (
+        <p
+          className={`mt-4 whitespace-pre-wrap text-center ${bioSize}`}
+          style={{ color: bioColor }}
+        >
+          {bio}
+        </p>
+      )}
+    </div>
+  </div>
+)}
+
+{/* SHAPE */}
+{profileLayout === "shape" && (
+  <div className="relative -mx-2 w-[calc(100%+1rem)] overflow-hidden rounded-[2rem] border border-white/10 bg-[#0c0d12] px-5 py-8 text-center">
+    <div className="pointer-events-none absolute -left-16 -top-16 h-44 w-44 rounded-full bg-[#00d084]/20 blur-3xl" />
+    <div className="pointer-events-none absolute -bottom-20 -right-16 h-48 w-48 rounded-full bg-[#40e0d0]/20 blur-3xl" />
+
+    <div className="relative z-10">
+      {avatarUrl ? (
+        <div className="mx-auto h-28 w-36 overflow-hidden bg-gradient-to-br from-[#00d084] via-[#40e0d0] to-[#056963] p-1 [border-radius:42%_58%_55%_45%/45%_42%_58%_55%]">
+          <div className="h-full w-full overflow-hidden bg-[#0c0d12] [border-radius:42%_58%_55%_45%/45%_42%_58%_55%]">
+            <img
+              src={avatarUrl}
+              alt={`Foto profilo di ${displayName || "BioLinkr"}`}
+              className="h-full w-full object-cover"
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="mx-auto flex h-28 w-36 items-center justify-center bg-[#00d084] text-4xl font-black text-[#07100d] [border-radius:42%_58%_55%_45%/45%_42%_58%_55%]">
+          {displayName ? displayName.charAt(0).toUpperCase() : "B"}
+        </div>
+      )}
+
+      <h1
+        className={`mt-5 text-center font-black ${displayNameSize}`}
+        style={{ color: displayNameColor }}
+      >
+        {displayName || "Il tuo nome"}
+      </h1>
+
+      <p
+        className="mt-1 text-sm font-medium"
+        style={{ color: usernameColor }}
+      >
+        @{username || "tuo_username"}
+      </p>
+
+      {bio && (
+        <p
+          className={`mt-4 whitespace-pre-wrap text-center ${bioSize}`}
+          style={{ color: bioColor }}
+        >
+          {bio}
+        </p>
+      )}
+    </div>
+  </div>
+)}
+
+{socialPosition === "below_profile" && socialLinks.length > 0 && (
+  <DndContext
+    sensors={socialSensors}
+    collisionDetection={closestCenter}
+    onDragStart={(event) => {
+      draggedSocialIdRef.current = String(event.active.id);
+    }}
+    onDragEnd={handlePreviewSocialDragEnd}
+  >
+    <SortableContext
+      items={socialLinks.map((socialLink) => socialLink.id)}
+      strategy={horizontalListSortingStrategy}
+    >
+      <div className="mt-5 flex flex-wrap justify-center gap-2">
+        {socialLinks.map((socialLink) => (
+          <SortableSocialIcon
+            key={socialLink.id}
+            socialLink={socialLink}
+            draggedSocialIdRef={draggedSocialIdRef}
+          />
+        ))}
+      </div>
+    </SortableContext>
+  </DndContext>
+)}
 
       {links.length === 0 ? (
         <div className="mt-8 w-full rounded-xl border border-dashed border-white/15 px-4 py-4 text-center text-sm text-white/40">

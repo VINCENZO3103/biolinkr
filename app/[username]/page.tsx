@@ -26,6 +26,7 @@ type Profile = {
   avatar_position_x: number | null;
   bg_color: string | null;
   bg_image_url: string | null;
+  banner_image_url: string | null;
   bg_video_url: string | null;
   video_opacity: number | null;
   button_style: string;
@@ -35,6 +36,9 @@ type Profile = {
   display_name_size: string | null;
   bio_size: string | null;
   social_position: "below_profile" | "footer" | null;
+  profile_layout: "classic" | "hero" | "banner" | "shape" | null;
+plan: "free" | "premium" | null;
+subscription_status: string | null;
 };
 
 
@@ -168,7 +172,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
   const { data: profile, error: profileError } = await supabase
   .from("profiles")
   .select(
-    "id, username, display_name, bio, avatar_url, avatar_width, avatar_height, avatar_position_x, avatar_position_y, bg_color, bg_image_url, bg_video_url, button_style, social_position, display_name_color, username_color, bio_color, display_name_size, bio_size, video_opacity, plan, subscription_status"
+    "id, username, display_name, bio, avatar_url, avatar_width, avatar_height, avatar_position_x, avatar_position_y, bg_color, bg_image_url, banner_image_url, bg_video_url, button_style, social_position, display_name_color, username_color, bio_color, display_name_size, bio_size, video_opacity, plan, subscription_status, profile_layout"
   )
   .eq("username", username.toLowerCase())
   .maybeSingle();
@@ -178,6 +182,15 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
   }
 
   const publicProfile = profile as Profile;
+  const isPro =
+  publicProfile.plan === "premium" ||
+  publicProfile.subscription_status === "trialing";
+
+const selectedLayout =
+  isPro &&
+  ["hero", "banner", "shape"].includes(publicProfile.profile_layout ?? "")
+    ? publicProfile.profile_layout
+    : "classic";
   console.log("publicProfile.bg_video_url:", publicProfile.bg_video_url);
 console.log("publicProfile.bg_image_url:", publicProfile.bg_image_url);
 console.log("publicProfile.bg_color:", publicProfile.bg_color);
@@ -294,82 +307,364 @@ console.log("publicProfile.bg_color:", publicProfile.bg_color);
     <div className="relative z-10">
       <ProfileViewTracker profileId={publicProfile.id} />
 
-      <div className="mx-auto flex w-full max-w-xl flex-col items-center">
+<div className="flex w-full flex-col items-center">
         <Link
           href="/"
-          className="mb-8 text-3xl font-black tracking-tight text-white/60 transition hover:text-white"
+className="relative z-20 mb-8 text-3xl font-black tracking-tight text-white/60 transition hover:text-white"
         >
           bio<span className="text-[#00d084]">linkr</span>
         </Link>
 
-        <section className="flex w-full flex-col items-center text-center">
-          {publicProfile.avatar_url ? (
-            <div
-              className="mx-auto flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15"
-            >
-              <img
-                src={publicProfile.avatar_url}
-                alt={publicProfile.display_name}
-                draggable={false}
-                className="select-none object-cover"
-                style={{
-                  width: `${publicProfile.avatar_width ?? 120}px`,
-                  height: `${publicProfile.avatar_width ?? 120}px`,
-                  objectPosition: `${publicProfile.avatar_position_x ?? 50}% 50%`,
-                  pointerEvents: "none",
-                  userSelect: "none",
-                }}
-              />
-            </div>
-          ) : (
-            <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-[#00d084] text-3xl font-black text-[#07100d]">
-              {publicProfile.display_name
-                ? publicProfile.display_name.charAt(0).toUpperCase()
-                : "B"}
-            </div>
-          )}
-
-          <h1
-            className={`mt-6 font-black tracking-tight ${
-              publicProfile.display_name_size || "text-4xl"
-            } text-center sm:text-5xl`}
+        <section className="w-full">
+  {/* CLASSIC — sempre disponibile */}
+  {selectedLayout === "classic" && (
+    <div className="flex flex-col items-center text-center">
+      {publicProfile.avatar_url ? (
+        <div className="mx-auto flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15">
+          <img
+            src={publicProfile.avatar_url}
+            alt={publicProfile.display_name}
+            draggable={false}
+            className="select-none object-cover"
             style={{
-              color: publicProfile.display_name_color || "#ffffff",
+              width: `${publicProfile.avatar_width ?? 120}px`,
+              height: `${publicProfile.avatar_width ?? 120}px`,
+              objectPosition: `${publicProfile.avatar_position_x ?? 50}% 50%`,
+              pointerEvents: "none",
+              userSelect: "none",
             }}
-          >
-            {publicProfile.display_name}
-          </h1>
+          />
+        </div>
+      ) : (
+        <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full bg-[#00d084] text-3xl font-black text-[#07100d]">
+          {publicProfile.display_name
+            ? publicProfile.display_name.charAt(0).toUpperCase()
+            : "B"}
+        </div>
+      )}
 
-          <p
-            className="mt-3 text-lg"
+      <h1
+        className={`mt-6 font-black tracking-tight ${
+          publicProfile.display_name_size || "text-4xl"
+        } text-center sm:text-5xl`}
+        style={{
+          color: publicProfile.display_name_color || "#ffffff",
+        }}
+      >
+        {publicProfile.display_name}
+      </h1>
+
+      <p
+        className="mt-3 text-lg"
+        style={{
+          color: publicProfile.username_color || "#00d084",
+        }}
+      >
+        @{publicProfile.username}
+      </p>
+
+      {publicProfile.bio && (
+        <p
+          className={`mx-auto mt-6 max-w-md whitespace-pre-wrap leading-relaxed ${
+            publicProfile.bio_size || "text-base"
+          }`}
+          style={{
+            color: publicProfile.bio_color || "rgba(255,255,255,0.7)",
+          }}
+        >
+          {publicProfile.bio}
+        </p>
+      )}
+
+      {socialPosition === "below_profile" &&
+        publicSocialLinks.length > 0 && (
+          <SocialIcons
+            links={publicSocialLinks}
+            className="mt-6 justify-center"
+          />
+        )}
+    </div>
+  )}
+
+  {/* HERO PRO — immagine centrata con bordo completamente invisibile */}
+{selectedLayout === "hero" && (
+  <div className="relative -mt-8 w-full px-6 pb-10 pt-8 text-center">
+    <div className="relative mx-auto flex max-w-xl flex-col items-center">
+      {publicProfile.avatar_url ? (
+        <div className="relative h-52 w-full max-w-sm sm:h-64">
+          {/* Bagliore molto morbido: non è una card */}
+          <div className="pointer-events-none absolute inset-x-8 bottom-2 h-24 rounded-full bg-[#00d084]/20 blur-3xl" />
+
+          {/* La foto è centrata, ma sfuma nei bordi */}
+          <img
+            src={publicProfile.avatar_url}
+            alt={publicProfile.display_name}
+            draggable={false}
+            className="absolute inset-0 h-full w-full object-cover"
             style={{
-              color: publicProfile.username_color || "#00d084",
+              objectPosition: `${publicProfile.avatar_position_x ?? 50}% 40%`,
+              pointerEvents: "none",
+              userSelect: "none",
+              WebkitMaskImage:
+                "radial-gradient(ellipse 72% 95% at 50% 45%, black 48%, transparent 78%)",
+              maskImage:
+                "radial-gradient(ellipse 72% 95% at 50% 45%, black 48%, transparent 78%)",
             }}
-          >
-            @{publicProfile.username}
-          </p>
+          />
 
-          {publicProfile.bio && (
-            <p
-              className={`mx-auto mt-6 max-w-md whitespace-pre-wrap leading-relaxed ${
-                publicProfile.bio_size || "text-base"
-              }`}
-              style={{
-                color: publicProfile.bio_color || "rgba(255,255,255,0.7)",
-              }}
-            >
-              {publicProfile.bio}
-            </p>
-          )}
+          {/* Una seconda maschera sfuma il fondo, senza colore di sfondo */}
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              WebkitMaskImage:
+                "linear-gradient(to bottom, transparent 0%, black 18%, black 58%, transparent 100%)",
+              maskImage:
+                "linear-gradient(to bottom, transparent 0%, black 18%, black 58%, transparent 100%)",
+            }}
+          />
+        </div>
+      ) : (
+        <div className="relative flex h-40 w-40 items-center justify-center">
+          <div className="absolute inset-0 rounded-full bg-[#00d084]/25 blur-3xl" />
+          <div className="relative flex h-28 w-28 items-center justify-center rounded-full bg-[#00d084] text-5xl font-black text-[#07100d]">
+            {publicProfile.display_name
+              ? publicProfile.display_name.charAt(0).toUpperCase()
+              : "B"}
+          </div>
+        </div>
+      )}
 
-          {socialPosition === "below_profile" && publicSocialLinks.length > 0 && (
-            <SocialIcons
-              links={publicSocialLinks}
-              className="mt-6 justify-center"
-            />
-          )}
-        </section>
+      <p
+        className="mt-3 text-[10px] font-black uppercase tracking-[0.38em]"
+        style={{
+          color: publicProfile.username_color || "#00d084",
+          textShadow: "0 2px 16px rgba(0,0,0,0.65)",
+        }}
+      >
+        @{publicProfile.username}
+      </p>
 
+      <h1
+        className={`mt-5 max-w-xl text-balance font-black leading-[0.84] tracking-[-0.075em] ${
+          publicProfile.display_name_size || "text-4xl"
+        } sm:text-7xl`}
+        style={{
+          color: publicProfile.display_name_color || "#ffffff",
+          textShadow: "0 8px 34px rgba(0,0,0,0.68)",
+        }}
+      >
+        {publicProfile.display_name}
+      </h1>
+
+      {publicProfile.bio && (
+        <p
+          className={`mt-6 max-w-md whitespace-pre-wrap text-center leading-relaxed ${
+            publicProfile.bio_size || "text-base"
+          }`}
+          style={{
+            color: publicProfile.bio_color || "rgba(255,255,255,0.82)",
+            textShadow: "0 3px 20px rgba(0,0,0,0.68)",
+          }}
+        >
+          {publicProfile.bio}
+        </p>
+      )}
+
+      {socialPosition === "below_profile" &&
+        publicSocialLinks.length > 0 && (
+          <SocialIcons
+            links={publicSocialLinks}
+            className="mt-7 justify-center"
+          />
+        )}
+    </div>
+  </div>
+)}
+
+{/* BANNER PRO — immagine orizzontale con bordi invisibili */}
+{selectedLayout === "banner" && (
+  <div className="relative -mt-8 w-full px-6 pb-10 pt-8 text-center">
+    <div className="relative mx-auto flex max-w-xl flex-col items-center">
+{(publicProfile.banner_image_url || publicProfile.avatar_url) ? (
+        <div className="relative h-40 w-full max-w-lg sm:h-52">
+          <div className="pointer-events-none absolute inset-x-10 top-8 h-28 rounded-full bg-[#00d084]/20 blur-3xl" />
+
+          <img
+src={publicProfile.banner_image_url || publicProfile.avatar_url || ""}
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 h-full w-full object-cover"
+            style={{
+              objectPosition: `${publicProfile.avatar_position_x ?? 50}% 42%`,
+              WebkitMaskImage:
+                "radial-gradient(ellipse 92% 82% at 50% 48%, black 46%, transparent 80%)",
+              maskImage:
+                "radial-gradient(ellipse 92% 82% at 50% 48%, black 46%, transparent 80%)",
+            }}
+          />
+        </div>
+      ) : (
+        <div className="relative h-32 w-full max-w-lg">
+          <div className="absolute inset-x-10 top-5 h-20 rounded-full bg-[#00d084]/25 blur-3xl" />
+        </div>
+      )}
+
+      <div className="-mt-10 flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-2 border-white/50 bg-[#00d084]/15 shadow-[0_18px_45px_rgba(0,0,0,0.38)] backdrop-blur-sm">
+        {publicProfile.avatar_url ? (
+          <img
+            src={publicProfile.avatar_url}
+            alt={publicProfile.display_name}
+            draggable={false}
+            className="h-full w-full select-none object-cover"
+            style={{
+              objectPosition: `${publicProfile.avatar_position_x ?? 50}% 50%`,
+              pointerEvents: "none",
+              userSelect: "none",
+            }}
+          />
+        ) : (
+          <span className="text-4xl font-black text-[#00d084]">
+            {publicProfile.display_name
+              ? publicProfile.display_name.charAt(0).toUpperCase()
+              : "B"}
+          </span>
+        )}
+      </div>
+
+      <p
+        className="mt-5 text-[10px] font-black uppercase tracking-[0.3em]"
+        style={{
+          color: publicProfile.username_color || "#00d084",
+          textShadow: "0 2px 16px rgba(0,0,0,0.65)",
+        }}
+      >
+        @{publicProfile.username}
+      </p>
+
+      <h1
+        className={`mt-3 max-w-xl text-balance font-black leading-[0.9] tracking-[-0.06em] ${
+          publicProfile.display_name_size || "text-4xl"
+        } sm:text-6xl`}
+        style={{
+          color: publicProfile.display_name_color || "#ffffff",
+          textShadow: "0 8px 34px rgba(0,0,0,0.58)",
+        }}
+      >
+        {publicProfile.display_name}
+      </h1>
+
+      {publicProfile.bio && (
+        <p
+          className={`mt-5 max-w-md whitespace-pre-wrap text-center leading-relaxed ${
+            publicProfile.bio_size || "text-base"
+          }`}
+          style={{
+            color: publicProfile.bio_color || "rgba(255,255,255,0.78)",
+            textShadow: "0 3px 20px rgba(0,0,0,0.55)",
+          }}
+        >
+          {publicProfile.bio}
+        </p>
+      )}
+
+      {socialPosition === "below_profile" &&
+        publicSocialLinks.length > 0 && (
+          <SocialIcons
+            links={publicSocialLinks}
+            className="mt-7 justify-center"
+          />
+        )}
+    </div>
+  </div>
+)}
+
+{/* SHAPE PRO — ritratto in forma organica, senza pannello */}
+{selectedLayout === "shape" && (
+  <div className="relative -mt-8 w-full px-6 pb-10 pt-8 text-center">
+    <div className="relative mx-auto flex max-w-xl flex-col items-center">
+      <div className="relative h-52 w-72 sm:h-60 sm:w-80">
+        <div className="pointer-events-none absolute -left-12 top-6 h-40 w-40 rounded-full bg-[#00d084]/20 blur-3xl" />
+        <div className="pointer-events-none absolute -right-10 bottom-0 h-40 w-40 rounded-full bg-[#40e0d0]/20 blur-3xl" />
+
+        <div className="absolute inset-0 translate-x-3 translate-y-3 bg-[#00d084]/30 [border-radius:52%_48%_42%_58%/45%_55%_45%_55%] blur-[1px]" />
+
+        {publicProfile.avatar_url ? (
+          <img
+            src={publicProfile.avatar_url}
+            alt={publicProfile.display_name}
+            draggable={false}
+            className="absolute inset-0 h-full w-full select-none object-cover"
+            style={{
+              objectPosition: `${publicProfile.avatar_position_x ?? 50}% 38%`,
+              pointerEvents: "none",
+              userSelect: "none",
+              WebkitMaskImage:
+                "radial-gradient(ellipse 78% 92% at 50% 48%, black 45%, transparent 82%)",
+              maskImage:
+                "radial-gradient(ellipse 78% 92% at 50% 48%, black 45%, transparent 82%)",
+              borderRadius: "52% 48% 42% 58% / 45% 55% 45% 55%",
+            }}
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center bg-[#00d084]/80 text-7xl font-black text-[#07100d] [border-radius:52%_48%_42%_58%/45%_55%_45%_55%]">
+            {publicProfile.display_name
+              ? publicProfile.display_name.charAt(0).toUpperCase()
+              : "B"}
+          </div>
+        )}
+
+        <div className="pointer-events-none absolute -left-2 bottom-8 h-8 w-8 rounded-full border border-white/40 bg-white/15 backdrop-blur" />
+        <div className="pointer-events-none absolute right-0 top-7 h-5 w-5 rounded-full bg-[#5cf0bd] shadow-[0_0_22px_#00d084]" />
+      </div>
+
+      <h1
+        className={`mt-7 max-w-xl text-balance font-black leading-[0.86] tracking-[-0.07em] ${
+          publicProfile.display_name_size || "text-4xl"
+        } sm:text-6xl`}
+        style={{
+          color: publicProfile.display_name_color || "#ffffff",
+          textShadow: "0 8px 34px rgba(0,0,0,0.58)",
+        }}
+      >
+        {publicProfile.display_name}
+      </h1>
+
+      <p
+        className="mt-3 text-[10px] font-black uppercase tracking-[0.3em]"
+        style={{
+          color: publicProfile.username_color || "#00d084",
+          textShadow: "0 2px 16px rgba(0,0,0,0.65)",
+        }}
+      >
+        @{publicProfile.username}
+      </p>
+
+      {publicProfile.bio && (
+        <p
+          className={`mt-5 max-w-md whitespace-pre-wrap text-center leading-relaxed ${
+            publicProfile.bio_size || "text-base"
+          }`}
+          style={{
+            color: publicProfile.bio_color || "rgba(255,255,255,0.78)",
+            textShadow: "0 3px 20px rgba(0,0,0,0.55)",
+          }}
+        >
+          {publicProfile.bio}
+        </p>
+      )}
+
+      {socialPosition === "below_profile" &&
+        publicSocialLinks.length > 0 && (
+          <SocialIcons
+            links={publicSocialLinks}
+            className="mt-7 justify-center"
+          />
+        )}
+    </div>
+  </div>
+)}
+</section>
+<div className="mx-auto flex w-full max-w-xl flex-col items-center px-6"></div>
         {hasContent && (
           <section className="mt-10 w-full space-y-10">
             {linksToShow.length > 0 && (

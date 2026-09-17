@@ -50,6 +50,7 @@ avatar_position_x: number | null;
 avatar_position_y: number | null;
   bg_color: string | null;
   bg_image_url: string | null;
+  banner_image_url: string | null;
   bg_video_url: string | null; 
   button_style: string;
   social_position: "below_profile" | "footer" | null;
@@ -1533,6 +1534,8 @@ const [gradientStart, setGradientStart] = useState("#2c135f");
 const [gradientEnd, setGradientEnd] = useState("#0b766a");
 const [gradientAngle, setGradientAngle] = useState("145deg");
   const [bgImageUrl, setBgImageUrl] = useState("");
+  const [bannerImageUrl, setBannerImageUrl] = useState("");
+const [uploadingBanner, setUploadingBanner] = useState(false);
   const [bgVideoUrl, setBgVideoUrl] = useState<string | null>(null);
   const [buttonStyle, setButtonStyle] = useState("solid");
   const [previewMode, setPreviewMode] = useState<"mobile" | "desktop">("mobile");
@@ -1550,7 +1553,7 @@ const [activeSection, setActiveSection] = useState<
 >("links");
 
 const [appearancePanel, setAppearancePanel] = useState<
-  "theme" | "background" | "buttons" | "profile" | null
+  "layout" | "theme" | "background" | "buttons" | "profile" | null
 >(null);
   const [linkTitle, setLinkTitle] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
@@ -1654,6 +1657,9 @@ const [lockedFeature, setLockedFeature] = useState("Sfondi video");
   const [plan, setPlan] = useState<"free" | "premium">("free");
   const [subscriptionStatus, setSubscriptionStatus] = useState<string>("free");
   const [subscriptionEndDate, setSubscriptionEndDate] = useState<string | null>(null);
+  const [profileLayout, setProfileLayout] = useState<
+  "classic" | "hero" | "banner" | "shape"
+>("classic");
   const [loading, setLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -1691,7 +1697,7 @@ const [lockedFeature, setLockedFeature] = useState("Sfondi video");
     const { data: profile, error: profileError } = await supabase
   .from("profiles")
   .select(
-    "id, username, display_name, bio, avatar_url, avatar_width, avatar_height, avatar_position_x, avatar_position_y, bg_color, bg_image_url, bg_video_url, button_style, social_position, display_name_color, username_color, bio_color, display_name_size, display_name_align, bio_size, plan, video_opacity, subscription_status, subscription_end_date"
+    "id, username, display_name, bio, avatar_url, avatar_width, avatar_height, avatar_position_x, avatar_position_y, bg_color, bg_image_url, banner_image_url, bg_video_url, button_style, social_position, display_name_color, username_color, bio_color, display_name_size, display_name_align, bio_size, plan, video_opacity, subscription_status, subscription_end_date, profile_layout"
   )
   .eq("id", user.id)
   .maybeSingle();
@@ -1701,6 +1707,13 @@ const [lockedFeature, setLockedFeature] = useState("Sfondi video");
 setPlan(profile?.plan === "premium" ? "premium" : "free");
 setSubscriptionStatus(profile?.subscription_status ?? "free");
 setSubscriptionEndDate(profile?.subscription_end_date ?? null);
+setProfileLayout(
+  profile?.profile_layout === "hero" ||
+    profile?.profile_layout === "banner" ||
+    profile?.profile_layout === "shape"
+    ? profile.profile_layout
+    : "classic"
+);
 
     if (profileError) {
       setMessage(
@@ -1738,6 +1751,7 @@ setSubscriptionEndDate(profile?.subscription_end_date ?? null);
   setProfileImagePositionX(savedProfile.avatar_position_x ?? 50);
   setBgColor(savedProfile.bg_color ?? "");
   setBgImageUrl(savedProfile.bg_image_url ?? "");
+  setBannerImageUrl(savedProfile.banner_image_url ?? "");
   setBgVideoUrl(savedProfile.bg_video_url ?? null);
   setButtonStyle(savedProfile.button_style ?? "solid");
   setBioSize(savedProfile.bio_size ?? "text-base");
@@ -2226,6 +2240,71 @@ function handleAvatarPointerUp(event: PointerEvent<HTMLDivElement>) {
     setMessage("Foto profilo aggiornata.");
   }
 
+  async function handleBannerImageChange(
+  event: ChangeEvent<HTMLInputElement>
+) {
+  const file = event.target.files?.[0];
+
+  if (!file || !userId) {
+    return;
+  }
+
+  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+  const maxSizeInBytes = 3 * 1024 * 1024;
+
+  if (!allowedTypes.includes(file.type)) {
+    setMessage("Scegli un'immagine JPG, PNG o WEBP.");
+    event.target.value = "";
+    return;
+  }
+
+  if (file.size > maxSizeInBytes) {
+    setMessage("Il banner deve pesare al massimo 3 MB.");
+    event.target.value = "";
+    return;
+  }
+
+  const extension =
+    file.type === "image/png"
+      ? "png"
+      : file.type === "image/webp"
+        ? "webp"
+        : "jpg";
+
+  const filePath = `${userId}/banner.${extension}`;
+
+  setUploadingBanner(true);
+  setMessage("");
+
+  const { error: uploadError } = await supabase.storage
+    .from("avatars")
+    .upload(filePath, file, {
+      cacheControl: "3600",
+      upsert: true,
+      contentType: file.type,
+    });
+
+  if (uploadError) {
+    setUploadingBanner(false);
+    setMessage(
+      `Non è stato possibile caricare il banner: ${uploadError.message}`
+    );
+    event.target.value = "";
+    return;
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("avatars").getPublicUrl(filePath);
+
+  setBannerImageUrl(`${publicUrl}?v=${Date.now()}`);
+  setUploadingBanner(false);
+  event.target.value = "";
+  setMessage(
+    "Banner caricato. Premi “Salva modifiche” per pubblicarlo."
+  );
+}
+
   async function handleBgChange(event: ChangeEvent<HTMLInputElement>) {
   const file = event.target.files?.[0];
   if (!file || !userId) return;
@@ -2588,9 +2667,16 @@ async function handleSaveProfile(event: FormEvent<HTMLFormElement>) {
   const cleanBio = bio.trim();
   const cleanBgColor = bgColor.trim() || null;
   const cleanBgImageUrl = bgImageUrl.trim() || null;
+  const cleanBannerImageUrl = bannerImageUrl.trim() || null;
   const cleanBgVideoUrl = bgVideoUrl ?? null; // ← aggiungi questa riga
   const cleanButtonStyle = buttonStyle.trim() || "solid";
   const cleanBioSize = bioSize || "text-base";
+  const cleanProfileLayout =
+  profileLayout === "hero" ||
+  profileLayout === "banner" ||
+  profileLayout === "shape"
+    ? profileLayout
+    : "classic";
   const cleanSocialPosition =
     socialPosition === "below_profile" ? "below_profile" : "footer";
 
@@ -2630,8 +2716,10 @@ async function handleSaveProfile(event: FormEvent<HTMLFormElement>) {
         avatar_position_y: 50,
         bg_color: cleanBgColor,
         bg_image_url: cleanBgImageUrl,
+        banner_image_url: cleanBannerImageUrl,
         bg_video_url: cleanBgVideoUrl, // ← aggiungi questa riga
         button_style: cleanButtonStyle,
+        profile_layout: cleanProfileLayout,
         video_opacity: videoOpacity,
         bio_size: cleanBioSize,
         social_position: cleanSocialPosition,
@@ -2646,7 +2734,7 @@ async function handleSaveProfile(event: FormEvent<HTMLFormElement>) {
       }
     )
     .select(
-      "username, display_name, bio, avatar_url, avatar_width, avatar_position_x, bg_color, bg_image_url, bg_video_url, button_style, bio_size, social_position, display_name_color, username_color, bio_color, display_name_size, video_opacity"
+      "username, display_name, bio, avatar_url, avatar_width, avatar_position_x, bg_color, bg_image_url, banner_image_url, bg_video_url, button_style, profile_layout, bio_size, social_position, display_name_color, username_color, bio_color, display_name_size, video_opacity"
     )
     .single();
 
@@ -2674,11 +2762,19 @@ async function handleSaveProfile(event: FormEvent<HTMLFormElement>) {
     setProfileImagePositionX(savedProfileData.avatar_position_x ?? 50);
     setBgColor(savedProfileData.bg_color ?? "");
     setBgImageUrl(savedProfileData.bg_image_url ?? "");
+    setBannerImageUrl(savedProfileData.banner_image_url ?? "");
     setBgVideoUrl(savedProfileData.bg_video_url ?? null); // ← aggiungi questa riga
     if (savedProfileData.video_opacity != null) {
   setVideoOpacity(savedProfileData.video_opacity);
 }
     setButtonStyle(savedProfileData.button_style ?? "solid");
+    setProfileLayout(
+  savedProfileData.profile_layout === "hero" ||
+    savedProfileData.profile_layout === "banner" ||
+    savedProfileData.profile_layout === "shape"
+    ? savedProfileData.profile_layout
+    : "classic"
+);
     setBioSize(savedProfileData.bio_size ?? "text-base");
     setSocialPosition(
       savedProfileData.social_position === "below_profile"
@@ -4584,6 +4680,7 @@ const previewProducts = products.map((p) => ({
                   username={(username ?? "").trim().toLowerCase()}
                   bio={bio ?? ""}
                   avatarUrl={avatarUrl ?? ""}
+                  bannerImageUrl={bannerImageUrl}
                   avatarWidth={profileImageWidth}
                   avatarPositionX={profileImagePositionX}
                   bgColor={bgColor ?? ""}
@@ -4591,6 +4688,7 @@ const previewProducts = products.map((p) => ({
                   bgVideoUrl={bgVideoUrl}
                   videoOpacity={videoOpacity}
                   buttonStyle={(buttonStyle ?? "solid") as "solid" | "outline" | "glass"}
+                  profileLayout={profileLayout}
                   displayNameColor={displayNameColor ?? "#ffffff"}
                   usernameColor={usernameColor ?? "#00d084"}
                   bioColor={bioColor ?? "rgba(255,255,255,0.7)"}
@@ -4760,16 +4858,27 @@ const previewProducts = products.map((p) => ({
   </div>
 
   <div className="mt-6 space-y-3">
+    
     {[
-      {
-        id: "theme" as const,
-        icon: "✦",
-        title: "Tema",
-        value: buttonStyle === "glass" ? "Glass" : buttonStyle === "outline" ? "Outline" : "Pieno",
-        description: "Una base pronta per il tuo stile.",
-      },
-      {
-        id: "background" as const,
+  {
+    id: "layout" as const,
+    icon: "▣",
+    title: "Layout",
+    value:
+      profileLayout === "classic"
+        ? "Classic"
+        : profileLayout.charAt(0).toUpperCase() + profileLayout.slice(1),
+    description: "Scegli la struttura del profilo.",
+  },
+  {
+    id: "theme" as const,
+    icon: "✦",
+    title: "Tema",
+    value: buttonStyle === "glass" ? "Glass" : buttonStyle === "outline" ? "Outline" : "Pieno",
+    description: "Una base pronta per il tuo stile.",
+  },
+  {
+    id: "background" as const,
         icon: "◐",
         title: "Sfondo",
         value: bgImageUrl
@@ -4846,6 +4955,291 @@ const previewProducts = products.map((p) => ({
               ›
             </span>
                     </button>
+                    {isOpen && item.id === "layout" && (
+  <div className="border-t border-white/10 px-4 pb-4 pt-3">
+    <div className="rounded-2xl border border-[#40e0d0]/20 bg-[#40e0d0]/[0.06] p-4">
+      <p className="text-sm font-black text-white">
+        Scegli il layout del profilo
+      </p>
+
+      <p className="mt-1 text-xs leading-5 text-white/55">
+        Classic è incluso per tutti. Hero, Banner e Shape sono layout PRO.
+      </p>
+    </div>
+
+    <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
+      {[
+        {
+          id: "classic" as const,
+          label: "Classic",
+          description: "Pulito e intramontabile",
+          pro: false,
+        },
+        {
+          id: "hero" as const,
+          label: "Hero",
+          description: "Ritratto grande",
+          pro: true,
+        },
+        {
+          id: "banner" as const,
+          label: "Banner",
+          description: "Copertina in evidenza",
+          pro: true,
+        },
+        {
+          id: "shape" as const,
+          label: "Shape",
+          description: "Forma creativa",
+          pro: true,
+        },
+      ].map((layoutOption) => {
+        const hasPro =
+          plan === "premium" || subscriptionStatus === "trialing";
+
+        const isLocked = layoutOption.pro && !hasPro;
+        const isSelected = profileLayout === layoutOption.id;
+
+        return (
+          <button
+            key={layoutOption.id}
+            type="button"
+            onClick={() => {
+              if (isLocked) {
+                setLockedFeature("Layout profilo PRO");
+                setProModalOpen(true);
+                return;
+              }
+
+              setProfileLayout(layoutOption.id);
+            }}
+            className={`group relative w-36 shrink-0 overflow-visible rounded-2xl border p-2 text-left transition ${
+              isSelected
+                ? "border-[#00d084] bg-[#00d084]/10 ring-2 ring-[#00d084]/20"
+                : "border-white/10 bg-[#0c0d12] hover:border-white/30"
+            }`}
+          >
+            {layoutOption.pro && (
+  <span
+    aria-label="Disponibile con PRO"
+className="pointer-events-none absolute right-2 top-2 z-20 h-7 w-7"
+  >
+    {/* Pill che cresce verso sinistra */}
+    <span className="absolute right-0 top-0 flex h-7 w-7 items-center justify-start overflow-hidden rounded-full border border-[#40e0d0]/50 bg-[#080b0d]/95 shadow-[0_3px_10px_rgba(0,0,0,0.35),0_0_10px_rgba(64,224,208,0.28)] transition-[width,border-color,box-shadow,background-color] duration-400 ease-out group-hover:w-[54px] group-hover:border-[#40e0d0]/80 group-hover:bg-[#091110] group-hover:shadow-[0_4px_15px_rgba(0,0,0,0.4),0_0_16px_rgba(64,224,208,0.48)] group-focus-visible:w-[54px] group-focus-visible:border-[#40e0d0]/80 group-focus-visible:bg-[#091110] group-focus-visible:shadow-[0_4px_15px_rgba(0,0,0,0.4),0_0_16px_rgba(64,224,208,0.48)]">
+      <span className="absolute left-2 top-1/2 -translate-y-1/2 whitespace-nowrap text-[8px] font-black uppercase tracking-[0.1em] text-[#d9fffa] opacity-0 transition-opacity delay-100 duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
+        PRO
+      </span>
+    </span>
+
+    {/* Diamante: resta fermo mentre la pill si espande */}
+    <span className="absolute inset-0 grid place-items-center">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        className="h-[17px] w-[17px] overflow-visible drop-shadow-[0_2px_2px_rgba(0,44,50,0.85)]"
+        aria-hidden="true"
+      >
+        <defs>
+          <linearGradient
+            id={`layoutProGemBase-${layoutOption.id}`}
+            x1="5"
+            y1="4"
+            x2="19"
+            y2="20"
+            gradientUnits="userSpaceOnUse"
+          >
+            <stop offset="0%" stopColor="#effffc" />
+            <stop offset="20%" stopColor="#aafbf0" />
+            <stop offset="48%" stopColor="#3bddca" />
+            <stop offset="76%" stopColor="#099e95" />
+            <stop offset="100%" stopColor="#045d5b" />
+          </linearGradient>
+
+          <linearGradient
+            id={`layoutProGemTop-${layoutOption.id}`}
+            x1="7"
+            y1="5"
+            x2="16"
+            y2="10"
+            gradientUnits="userSpaceOnUse"
+          >
+            <stop offset="0%" stopColor="#ffffff" />
+            <stop offset="48%" stopColor="#b8fff6" />
+            <stop offset="100%" stopColor="#39cfbf" />
+          </linearGradient>
+        </defs>
+
+        <path
+          d="M6.4 5.25h11.2l3 4.15L12 19.85 3.4 9.4l3-4.15Z"
+          fill={`url(#layoutProGemBase-${layoutOption.id})`}
+          stroke="#d9fffa"
+          strokeWidth="0.95"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M6.4 5.25h11.2l-2.7 4.15H9.1L6.4 5.25Z"
+          fill={`url(#layoutProGemTop-${layoutOption.id})`}
+        />
+        <path
+          d="M6.4 5.25 9.1 9.4H3.4l3-4.15Z"
+          fill="#9effef"
+          opacity="0.82"
+        />
+        <path
+          d="m17.6 5.25-2.7 4.15h5.7l-3-4.15Z"
+          fill="#2dbdaf"
+          opacity="0.94"
+        />
+        <path d="M3.4 9.4h17.2L12 19.85 3.4 9.4Z" fill="#078f88" />
+        <path d="m3.4 9.4 8.6 10.45V9.4H3.4Z" fill="#25c5b6" />
+        <path d="M12 9.4v10.45l8.6-10.45H12Z" fill="#056963" />
+        <path
+          d="M7.1 6.4h4.75L9.7 8.45H5.65L7.1 6.4Z"
+          fill="#ffffff"
+          opacity="0.62"
+        />
+        <path
+          d="M3.4 9.4h17.2M9.1 9.4 12 19.85l2.9-10.45M6.4 5.25l2.7 4.15m8.5-4.15-2.7 4.15"
+          fill="none"
+          stroke="#034c49"
+          strokeWidth="0.55"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity="0.5"
+        />
+      </svg>
+    </span>
+  </span>
+)}
+
+            {layoutOption.id === "classic" && (
+              <div className="relative h-24 rounded-xl border border-white/10 bg-gradient-to-br from-[#222632] to-[#0c0d12]">
+                <div className="absolute left-1/2 top-4 h-10 w-10 -translate-x-1/2 rounded-full bg-gradient-to-br from-[#f2c7b6] to-[#8a4d42]" />
+                <div className="absolute left-1/2 top-16 h-1.5 w-14 -translate-x-1/2 rounded-full bg-white/80" />
+                <div className="absolute left-1/2 top-[4.8rem] h-1 w-10 -translate-x-1/2 rounded-full bg-white/35" />
+              </div>
+            )}
+
+            {layoutOption.id === "hero" && (
+              <div className="relative h-24 overflow-hidden rounded-xl border border-white/10 bg-gradient-to-b from-[#c43d47] via-[#4d2026] to-[#0c0d12]">
+                <div className="absolute left-1/2 top-2 h-20 w-16 -translate-x-1/2 rounded-t-[2rem] bg-gradient-to-b from-[#1f1716] via-[#b77d6b] to-[#f0b8a4]" />
+                <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[#0c0d12] to-transparent" />
+              </div>
+            )}
+
+            {layoutOption.id === "banner" && (
+              <div className="relative h-24 overflow-hidden rounded-xl border border-white/10 bg-[#f0e4e1]">
+                <div className="absolute inset-x-0 top-0 h-10 bg-gradient-to-r from-[#f6c7d0] via-[#fff5f4] to-[#e7a8b6]" />
+                <div className="absolute left-1/2 top-5 h-10 w-10 -translate-x-1/2 rounded-full border-2 border-white bg-gradient-to-br from-[#2b1a1b] to-[#edb9a6]" />
+                <div className="absolute bottom-4 left-1/2 h-1.5 w-14 -translate-x-1/2 rounded-full bg-[#34303a]" />
+              </div>
+            )}
+
+            {layoutOption.id === "shape" && (
+              <div className="relative h-24 overflow-hidden rounded-xl border border-white/10 bg-gradient-to-br from-[#5a1c25] via-[#d04a55] to-[#f19e9e]">
+                <div className="absolute left-1/2 top-3 h-16 w-20 -translate-x-1/2 bg-gradient-to-br from-[#241313] via-[#b77666] to-[#f0b49f] [border-radius:42%_58%_55%_45%/45%_42%_58%_55%]" />
+              </div>
+            )}
+
+            <p
+              className={`mt-3 text-sm font-black ${
+                isSelected ? "text-[#5cf0bd]" : "text-white"
+              }`}
+            >
+              {layoutOption.label}
+            </p>
+
+            <p className="mt-1 min-h-8 text-[11px] leading-4 text-white/45">
+              {layoutOption.description}
+            </p>
+
+            {isLocked && (
+              <p className="mt-2 text-[10px] font-black uppercase tracking-[0.1em] text-[#78f5df]">
+                Richiede PRO
+              </p>
+            )}
+
+            {isSelected && (
+              <span className="mt-2 inline-flex rounded-full bg-[#00d084] px-2 py-1 text-[10px] font-black text-[#07100d]">
+                Attivo
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+
+    {profileLayout === "banner" && (
+  <div className="mt-5 rounded-2xl border border-white/10 bg-[#0c0d12] p-4">
+    <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="min-w-0">
+        <p className="text-sm font-black text-white">
+          Logo o immagine banner
+        </p>
+
+        <p className="mt-1 text-xs leading-5 text-white/50">
+          Carica un logo o una cover orizzontale. Per un risultato migliore,
+          usa PNG, JPG o WEBP in formato 3:1 oppure 4:1.
+        </p>
+      </div>
+
+      {bannerImageUrl ? (
+        <img
+          src={bannerImageUrl}
+          alt="Anteprima banner"
+          className="h-14 w-28 rounded-xl border border-white/15 object-cover"
+        />
+      ) : (
+        <div className="flex h-14 w-28 items-center justify-center rounded-xl border border-dashed border-white/20 px-2 text-center text-[10px] font-bold text-white/35">
+          Nessun banner
+        </div>
+      )}
+    </div>
+
+    <label className="mt-4 flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-white/15 bg-white/[0.04] px-4 py-3 text-sm font-bold text-white/75 transition hover:border-[#00d084] hover:text-[#00d084]">
+      {uploadingBanner ? "Caricamento..." : "Carica logo o banner"}
+
+      <input
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        onChange={handleBannerImageChange}
+        disabled={uploadingBanner}
+        className="sr-only"
+      />
+    </label>
+
+    {bannerImageUrl && (
+      <button
+        type="button"
+        onClick={() => {
+          setBannerImageUrl("");
+          setMessage(
+            "Banner rimosso. Premi “Salva modifiche” per pubblicare la modifica."
+          );
+        }}
+        className="mt-3 w-full rounded-xl px-4 py-2 text-sm font-bold text-red-300 transition hover:bg-red-400/10"
+      >
+        Rimuovi banner
+      </button>
+    )}
+  </div>
+)}
+
+    <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-white/10 bg-[#0c0d12] p-4 sm:flex-row sm:items-center sm:justify-between">
+  <p className="text-xs leading-5 text-white/45">
+    L’anteprima si aggiorna subito. Premi Salva modifiche per pubblicare il layout.
+  </p>
+
+  <button
+    type="submit"
+    disabled={savingProfile || uploadingAvatar || uploadingBg}
+    className="min-h-11 shrink-0 rounded-xl bg-[#00d084] px-5 py-3 text-sm font-black text-[#07100d] transition hover:bg-[#19e49b] disabled:cursor-not-allowed disabled:opacity-60"
+  >
+    {savingProfile ? "Salvataggio..." : "Salva modifiche"}
+  </button>
+</div>
+  </div>
+)}
 {isOpen && item.id === "theme" && (
   <div className="border-t border-white/10 px-4 pb-4 pt-3">
 <div className="rounded-2xl border border-[#00d084]/20 bg-[#00d084]/[0.06] p-4">
@@ -7388,6 +7782,7 @@ onResetIconObjectPosition={() => {
     username={(username ?? "").trim().toLowerCase()}
     bio={bio ?? ""}
     avatarUrl={avatarUrl ?? ""}
+    bannerImageUrl={bannerImageUrl}
     avatarWidth={profileImageWidth}
     avatarPositionX={profileImagePositionX}
     bgColor={bgColor ?? ""}
@@ -7395,6 +7790,7 @@ onResetIconObjectPosition={() => {
     bgVideoUrl={bgVideoUrl}
     videoOpacity={videoOpacity}
     buttonStyle={(buttonStyle ?? "solid") as "solid" | "outline" | "glass"}
+    profileLayout={profileLayout}
     displayNameColor={displayNameColor ?? "#ffffff"}
     usernameColor={usernameColor ?? "#00d084"}
     bioColor={bioColor ?? "rgba(255,255,255,0.7)"}
@@ -7451,10 +7847,12 @@ onResetIconObjectPosition={() => {
           username={username.trim().toLowerCase()}
           bio={bio}
           avatarUrl={avatarUrl}
+          bannerImageUrl={bannerImageUrl}
           bgColor={bgColor}
           bgImageUrl={bgImageUrl}
           bgVideoUrl={bgVideoUrl ?? null}
           buttonStyle={buttonStyle as "solid" | "outline" | "glass"}
+          profileLayout={profileLayout}
                   displayNameColor={displayNameColor}
         usernameColor={usernameColor}
         bioColor={bioColor}
@@ -7980,12 +8378,14 @@ onResetIconObjectPosition={() => {
   username={(username ?? "").trim().toLowerCase()}
   bio={bio ?? ""}
   avatarUrl={avatarUrl ?? ""}
+  bannerImageUrl={bannerImageUrl}
   bgColor={bgColor ?? ""}
   bgImageUrl={bgImageUrl ?? ""}
   bgVideoUrl={bgVideoUrl ?? null}
   buttonStyle={
     (buttonStyle ?? "solid") as "solid" | "outline" | "glass"
   }
+  profileLayout={profileLayout}
   displayNameColor={displayNameColor ?? "#ffffff"}
   usernameColor={usernameColor ?? "#00d084"}
   bioColor={bioColor ?? "rgba(255,255,255,0.7)"}
