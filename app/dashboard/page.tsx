@@ -1826,8 +1826,10 @@ setSocialLinks(savedSocials);
 await loadAnalytics(user.id, savedLinks);
 await loadOrders(user.id, savedProducts);
 
-if (username) {
-  await loadGeoAnalytics(username);
+const profileUsername = profile?.username?.trim();
+
+if (profileUsername) {
+  await loadGeoAnalytics(profileUsername);
 }
 }
 
