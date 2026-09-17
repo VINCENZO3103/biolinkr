@@ -7,8 +7,6 @@ export async function GET(
 ) {
   const { username } = await params;
 
-  console.log("analytics: username=", username);
-
   if (!username) {
     return NextResponse.json(
       { error: "Username mancante" },
@@ -19,20 +17,7 @@ export async function GET(
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-  if (!supabaseUrl || !supabaseAnonKey) {
-    console.error("analytics: env Supabase mancanti");
-    return NextResponse.json(
-      { error: "Configurazione Supabase mancante" },
-      { status: 500 }
-    );
-  }
-
-  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
-  });
+  const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
   const profileRes = await supabase
     .from("profiles")
@@ -40,10 +25,7 @@ export async function GET(
     .eq("username", username.toLowerCase())
     .single();
 
-  console.log("analytics: profileRes=", profileRes);
-
   if (profileRes.error || !profileRes.data) {
-    console.error("analytics: profilo non trovato", profileRes.error);
     return NextResponse.json(
       { error: "Profilo non trovato" },
       { status: 404 }
@@ -51,8 +33,6 @@ export async function GET(
   }
 
   const profileId = profileRes.data.id;
-
-  console.log("analytics: profileId=", profileId);
 
   // Totale visite
   const totalRes = await supabase
@@ -62,15 +42,18 @@ export async function GET(
 
   const totalVisits = totalRes.count ?? 0;
 
-  console.log("analytics: totalVisits=", totalVisits);
-
   // Paesi
   const countriesRes = await supabase.rpc(
     "get_profile_views_by_country",
     { p_profile_id: profileId }
   );
 
-  console.log("analytics: countries=", countriesRes);
+  const countries = Array.isArray(countriesRes.data)
+    ? countriesRes.data.map((c: any) => ({
+        country_code: String(c.country_code ?? "unknown"),
+        visits: Number(c.visits ?? 0),
+      }))
+    : [];
 
   // Device
   const devicesRes = await supabase.rpc(
@@ -78,7 +61,12 @@ export async function GET(
     { p_profile_id: profileId }
   );
 
-  console.log("analytics: devices=", devicesRes);
+  const devices = Array.isArray(devicesRes.data)
+    ? devicesRes.data.map((d: any) => ({
+        device_type: String(d.device_type ?? "unknown"),
+        visits: Number(d.visits ?? 0),
+      }))
+    : [];
 
   // Sorgenti
   const sourcesRes = await supabase.rpc(
@@ -86,21 +74,17 @@ export async function GET(
     { p_profile_id: profileId }
   );
 
-  console.log("analytics: sources=", sourcesRes);
+  const sources = Array.isArray(sourcesRes.data)
+    ? sourcesRes.data.map((s: any) => ({
+        referrer: String(s.referrer ?? "unknown"),
+        visits: Number(s.visits ?? 0),
+      }))
+    : [];
 
   return NextResponse.json({
     totalVisits,
-    countries: (countriesRes.data ?? []) as Array<{
-      country_code: string;
-      visits: number;
-    }>,
-    devices: (devicesRes.data ?? []) as Array<{
-      device_type: string;
-      visits: number;
-    }>,
-    sources: (sourcesRes.data ?? []) as Array<{
-      referrer: string;
-      visits: number;
-    }>,
+    countries,
+    devices,
+    sources,
   });
 }
