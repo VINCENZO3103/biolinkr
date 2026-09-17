@@ -7,6 +7,8 @@ export async function GET(
 ) {
   const { username } = await params;
 
+  console.log("analytics: username=", username);
+
   if (!username) {
     return NextResponse.json(
       { error: "Username mancante" },
@@ -18,6 +20,7 @@ export async function GET(
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
   if (!supabaseUrl || !supabaseAnonKey) {
+    console.error("analytics: env Supabase mancanti");
     return NextResponse.json(
       { error: "Configurazione Supabase mancante" },
       { status: 500 }
@@ -37,7 +40,10 @@ export async function GET(
     .eq("username", username.toLowerCase())
     .single();
 
+  console.log("analytics: profileRes=", profileRes);
+
   if (profileRes.error || !profileRes.data) {
+    console.error("analytics: profilo non trovato", profileRes.error);
     return NextResponse.json(
       { error: "Profilo non trovato" },
       { status: 404 }
@@ -45,6 +51,8 @@ export async function GET(
   }
 
   const profileId = profileRes.data.id;
+
+  console.log("analytics: profileId=", profileId);
 
   // Totale visite
   const totalRes = await supabase
@@ -54,11 +62,15 @@ export async function GET(
 
   const totalVisits = totalRes.count ?? 0;
 
+  console.log("analytics: totalVisits=", totalVisits);
+
   // Paesi
   const countriesRes = await supabase.rpc(
     "get_profile_views_by_country",
     { p_profile_id: profileId }
   );
+
+  console.log("analytics: countries=", countriesRes);
 
   // Device
   const devicesRes = await supabase.rpc(
@@ -66,11 +78,15 @@ export async function GET(
     { p_profile_id: profileId }
   );
 
+  console.log("analytics: devices=", devicesRes);
+
   // Sorgenti
   const sourcesRes = await supabase.rpc(
     "get_profile_views_by_source",
     { p_profile_id: profileId }
   );
+
+  console.log("analytics: sources=", sourcesRes);
 
   return NextResponse.json({
     totalVisits,
