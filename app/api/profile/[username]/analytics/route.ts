@@ -34,6 +34,17 @@ export async function GET(
 
   const profileId = profileRes.data.id;
 
+  console.log("analytics: profileId=", profileId);
+
+  // Test diretto: esegui una query semplice per verificare
+  const testRes = await supabase
+    .from("profile_views")
+    .select("profile_id, country_code, device_type, referrer")
+    .eq("profile_id", profileId)
+    .limit(5);
+
+  console.log("analytics: testRes=", testRes);
+
   // Totale visite
   const totalRes = await supabase
     .from("profile_views")
