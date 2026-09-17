@@ -1969,7 +1969,7 @@ async function loadAnalytics(
 
         supabase
           .from("social_clicks")
-          .select("platform, clicked_at, profile_id")
+          .select("platform, clicked_at")
           .eq("profile_id", profileId),
       ]);
 
@@ -2001,7 +2001,6 @@ async function loadAnalytics(
 
     let viewsLast24Hours = 0;
     let viewsLast7Days = 0;
-
     const sourceCounts: Record<string, number> = {};
 
     for (const view of views) {
@@ -2073,9 +2072,7 @@ async function loadAnalytics(
     setWeekSocialClicks(socialClicksLast7Days);
     setSocialClicksByPlatform(socialClickTotals);
 
-    setTrafficSources(
-      makeTrafficRows(sourceCounts, views.length),
-    );
+    setTrafficSources(makeTrafficRows(sourceCounts, views.length));
   } catch (error) {
     console.error("Errore analytics dashboard:", error);
 
@@ -4179,89 +4176,117 @@ const previewProducts = products.map((p) => ({
   </p>
 ) : (
   <>
-  {/* Paesi */}
-<section>
-  <h3 className="mb-3 text-lg font-semibold">
-    Paesi principali
-  </h3>
+  {geoAnalyticsLoading ? (
+  <p className="text-sm text-white/50">
+    Caricamento paesi, dispositivi e sorgenti...
+  </p>
+) : (
+  <div className="space-y-6">
+    {/* Paesi */}
+    <section>
+      <h3 className="mb-3 text-lg font-semibold">
+        Paesi principali
+      </h3>
 
-  <div className="grid grid-cols-2 gap-3">
-    {countriesByVisits.slice(0, 6).map((country) => {
-      const code = country.name || "Unknown";
+      {countriesByVisits.length === 0 ? (
+        <p className="text-sm text-white/50">
+          Nessun dato geografico disponibile.
+        </p>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          {countriesByVisits.slice(0, 6).map((country) => {
+            const code = country.name ?? "Unknown";
 
-      return (
-        <div
-          key={code}
-          className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3"
-        >
-          <div className="flex items-center gap-2">
-            <span className="text-xl">
-              {flagFromCode(code)}
-            </span>
+            return (
+              <div
+                key={code}
+                className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">
+                    {flagFromCode(code)}
+                  </span>
 
-            <span className="font-medium">
-              {code === "Unknown"
-                ? "Sconosciuto"
-                : code.toUpperCase()}
-            </span>
-          </div>
+                  <span className="font-medium">
+                    {code === "Unknown"
+                      ? "Sconosciuto"
+                      : code.toUpperCase()}
+                  </span>
+                </div>
 
-          <div className="text-sm text-white/60">
-            {country.value} visite
-          </div>
+                <span className="text-sm text-white/60">
+                  {country.value} visite
+                </span>
+              </div>
+            );
+          })}
         </div>
-      );
-    })}
-  </div>
-</section>
+      )}
+    </section>
 
-   {/* Dispositivi */}
-<section className="mt-6">
-  <h3 className="mb-3 text-lg font-semibold">
-    Dispositivi
-  </h3>
+    {/* Dispositivi */}
+    <section>
+      <h3 className="mb-3 text-lg font-semibold">
+        Dispositivi
+      </h3>
 
-  <div className="grid grid-cols-3 gap-3">
-    {devicesByVisits.map((device) => (
-      <div
-        key={device.name}
-        className="rounded-xl border border-white/10 bg-white/5 p-3 text-center"
-      >
-        <div className="text-sm capitalize text-white/60">
-          {device.name}
+      {devicesByVisits.length === 0 ? (
+        <p className="text-sm text-white/50">
+          Nessun dato sui dispositivi disponibile.
+        </p>
+      ) : (
+        <div className="grid grid-cols-3 gap-3">
+          {devicesByVisits.map((device) => (
+            <div
+              key={device.name}
+              className="rounded-xl border border-white/10 bg-white/5 p-3 text-center"
+            >
+              <div className="text-sm capitalize text-white/60">
+                {device.name === "Unknown"
+                  ? "Sconosciuto"
+                  : device.name}
+              </div>
+
+              <div className="mt-1 text-lg font-semibold">
+                {device.value}
+              </div>
+            </div>
+          ))}
         </div>
+      )}
+    </section>
 
-        <div className="text-lg font-semibold">
-          {device.value}
+    {/* Sorgenti */}
+    <section>
+      <h3 className="mb-3 text-lg font-semibold">
+        Sorgenti
+      </h3>
+
+      {sourcesByVisits.length === 0 ? (
+        <p className="text-sm text-white/50">
+          Nessun dato sulle sorgenti disponibile.
+        </p>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          {sourcesByVisits.map((source) => (
+            <div
+              key={source.name}
+              className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3"
+            >
+              <span className="font-medium capitalize">
+                {source.name}
+              </span>
+
+              <span className="text-sm text-white/60">
+                {source.value} visite
+              </span>
+            </div>
+          ))}
         </div>
-      </div>
-    ))}
+      )}
+    </section>
   </div>
-</section>
-
-   {/* Sorgenti */}
-<section className="mt-6">
-  <h3 className="mb-3 text-lg font-semibold">
-    Sorgenti
-  </h3>
-
-  <div className="grid grid-cols-2 gap-3">
-    {sourcesByVisits.map((source) => (
-      <div
-        key={source.name}
-        className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3"
-      >
-        <span className="font-medium capitalize">
-          {source.name}
-        </span>
-
-        <span className="text-sm text-white/60">
-          {source.value} visite
-        </span>
-      </div>
-    ))}
-  </div>
-</section>
+)}
   </>
 )}
 
