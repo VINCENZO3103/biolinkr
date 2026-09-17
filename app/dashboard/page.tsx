@@ -852,6 +852,7 @@ function SortableLinkItem({
           </div>
 
           <div className="rounded-2xl border border-white/10 bg-[#17181e] p-4">
+  <div className="relative mt-6">
   <div className="flex flex-wrap items-start justify-between gap-4">
     <div>
       <p className="text-sm font-bold text-white">
@@ -864,15 +865,101 @@ function SortableLinkItem({
     </div>
 
     {!isPro && (
-      <button
-        type="button"
-        onClick={onRequirePro}
-        className="rounded-lg border border-[#00d084]/35 bg-[#00d084]/10 px-3 py-2 text-xs font-black text-[#5cf0bd] transition hover:bg-[#00d084]/20"
-      >
+  <button
+    type="button"
+    onClick={onRequirePro}
+    className="group relative h-7 w-7 overflow-visible"
+    aria-label="Disponibile con PRO"
+  >
+    {/* Pill che cresce verso sinistra */}
+    <span className="absolute right-0 top-0 flex h-7 w-7 items-center justify-start overflow-hidden rounded-full border border-[#40e0d0]/50 bg-[#080b0d]/95 shadow-[0_3px_10px_rgba(0,0,0,0.35),0_0_10px_rgba(64,224,208,0.28)] transition-[width,border-color,box-shadow,background-color] duration-400 ease-out group-hover:w-[54px] group-hover:border-[#40e0d0]/80 group-hover:bg-[#091110] group-hover:shadow-[0_4px_15px_rgba(0,0,0,0.4),0_0_16px_rgba(64,224,208,0.48)]">
+      <span className="absolute left-2 top-1/2 -translate-y-1/2 whitespace-nowrap text-[8px] font-black uppercase tracking-[0.1em] text-[#d9fffa] opacity-0 transition-opacity delay-100 duration-200 group-hover:opacity-100">
         PRO
-      </button>
-    )}
+      </span>
+    </span>
+
+    {/* Diamante: resta fermo mentre la pill si espande */}
+    <span className="absolute inset-0 grid place-items-center">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        className="h-[17px] w-[17px] overflow-visible drop-shadow-[0_2px_2px_rgba(0,44,50,0.85)]"
+        aria-hidden="true"
+      >
+        <defs>
+          <linearGradient
+            id="targetingProGemBase"
+            x1="5"
+            y1="4"
+            x2="19"
+            y2="20"
+            gradientUnits="userSpaceOnUse"
+          >
+            <stop offset="0%" stopColor="#effffc" />
+            <stop offset="20%" stopColor="#aafbf0" />
+            <stop offset="48%" stopColor="#3bddca" />
+            <stop offset="76%" stopColor="#099e95" />
+            <stop offset="100%" stopColor="#045d5b" />
+          </linearGradient>
+
+          <linearGradient
+            id="targetingProGemTop"
+            x1="7"
+            y1="5"
+            x2="16"
+            y2="10"
+            gradientUnits="userSpaceOnUse"
+          >
+            <stop offset="0%" stopColor="#ffffff" />
+            <stop offset="48%" stopColor="#b8fff6" />
+            <stop offset="100%" stopColor="#39cfbf" />
+          </linearGradient>
+        </defs>
+
+        <path
+          d="M6.4 5.25h11.2l3 4.15L12 19.85 3.4 9.4l3-4.15Z"
+          fill="url(#targetingProGemBase)"
+          stroke="#d9fffa"
+          strokeWidth="0.95"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M6.4 5.25h11.2l-2.7 4.15H9.1L6.4 5.25Z"
+          fill="url(#targetingProGemTop)"
+        />
+        <path
+          d="M6.4 5.25 9.1 9.4H3.4l3-4.15Z"
+          fill="#9effef"
+          opacity="0.82"
+        />
+        <path
+          d="m17.6 5.25-2.7 4.15h5.7l-3-4.15Z"
+          fill="#2dbdaf"
+          opacity="0.94"
+        />
+        <path d="M3.4 9.4h17.2L12 19.85 3.4 9.4Z" fill="#078f88" />
+        <path d="m3.4 9.4 8.6 10.45V9.4H3.4Z" fill="#25c5b6" />
+        <path d="M12 9.4v10.45l8.6-10.45H12Z" fill="#056963" />
+        <path
+          d="M7.1 6.4h4.75L9.7 8.45H5.65L7.1 6.4Z"
+          fill="#ffffff"
+          opacity="0.62"
+        />
+        <path
+          d="M3.4 9.4h17.2M9.1 9.4 12 19.85l2.9-10.45M6.4 5.25l2.7 4.15m8.5-4.15-2.7 4.15"
+          fill="none"
+          stroke="#034c49"
+          strokeWidth="0.55"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity="0.5"
+        />
+      </svg>
+    </span>
+  </button>
+  )}
   </div>
+</div>
 
   <div className={`mt-4 grid gap-4 ${!isPro ? "pointer-events-none opacity-45" : ""}`}>
     <div>
@@ -1845,6 +1932,9 @@ const [appearancePanel, setAppearancePanel] = useState<
 >(null);
   const [linkTitle, setLinkTitle] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
+  const [newLinkTargetCountries, setNewLinkTargetCountries] = useState<string[]>([]);
+const [newLinkTargetDevices, setNewLinkTargetDevices] = useState<string[]>([]);
+const [newLinkTargetSources, setNewLinkTargetSources] = useState<string[]>([]);
   const [linkIconUrl, setLinkIconUrl] = useState("");
   const [newLinkIconFile, setNewLinkIconFile] = useState<File | null>(null);
   const [newLinkDisplayType, setNewLinkDisplayType] = useState<"button" | "image">("button");
@@ -1959,6 +2049,12 @@ const [isDraggingAvatar, setIsDraggingAvatar] = useState(false);
 
   const [message, setMessage] = useState("");
   const [proModalOpen, setProModalOpen] = useState(false);
+
+  const onRequirePro = () => {
+  setLockedFeature("Targeting avanzato");
+  setProModalOpen(true);
+};
+  
 const [lockedFeature, setLockedFeature] = useState("Sfondi video");
   const [plan, setPlan] = useState<"free" | "premium">("free");
   const [subscriptionStatus, setSubscriptionStatus] = useState<string>("free");
@@ -3248,6 +3344,9 @@ if (newLinkDisplayType === "image" && !newLinkImageFile) {
       .from("links")
       .insert({
         profile_id: userId,
+        target_countries: newLinkTargetCountries,
+target_devices: newLinkTargetDevices,
+target_sources: newLinkTargetSources,
         title:
   newLinkDisplayType === "image"
     ? cleanTitle || "Link immagine"
@@ -3384,10 +3483,13 @@ if (newLinkDisplayType === "image" && newLinkImageFile) {
     setLinkTitle("");
     setLinkUrl("");
     setLinkIconUrl("");
+    setNewLinkTargetCountries([]);
+setNewLinkTargetDevices([]);
+setNewLinkTargetSources([]);
     setNewLinkIconFile(null);
     setNewLinkDisplayType("button");
 setNewLinkImageFile(null);
-setNewLinkImagePreview("");
+setNewLinkImagePreview("")
     setLinkScheduleEnabled(false);
     setLinkStartsAt("");
     setLinkEndsAt("");
@@ -4478,57 +4580,55 @@ const previewProducts = products.map((p) => ({
   <p className="text-sm text-white/50">
     Caricamento paesi, dispositivi e sorgenti...
   </p>
-) : (
+) : plan === "premium" ? (
   <div className="space-y-6">
     {/* Paesi */}
-<section>
-  <h3 className="mb-3 text-lg font-semibold">
-    Paesi principali
-  </h3>
+    <section>
+      <h3 className="mb-3 text-lg font-semibold">
+        Paesi principali
+      </h3>
 
-  {countriesByVisits.length === 0 ? (
-    <p className="text-sm text-white/50">
-      Nessun dato geografico disponibile.
-    </p>
-  ) : (
-    <div className="grid grid-cols-2 gap-3">
-      {countriesByVisits.slice(0, 6).map((country) => {
-        const code = country.name ?? "Unknown";
-        const isUnknown = code === "Unknown";
-        const displayCode = isUnknown ? "XX" : code.toUpperCase();
-        const flagUrl = isUnknown
-          ? UNKNOWN_FLAG_URL
-          : `https://flagcdn.com/w40/${displayCode.toLowerCase()}.png`;
-        const displayName = isUnknown
-          ? "Sconosciuto"
-          : TARGET_COUNTRY_NAMES[displayCode] ?? displayCode;
+      {countriesByVisits.length === 0 ? (
+        <p className="text-sm text-white/50">
+          Nessun dato geografico disponibile.
+        </p>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          {countriesByVisits.slice(0, 6).map((country) => {
+            const code = country.name ?? "Unknown";
+            const isUnknown = code === "Unknown";
+            const displayCode = isUnknown ? "XX" : code.toUpperCase();
+            const flagUrl = isUnknown
+              ? UNKNOWN_FLAG_URL
+              : `https://flagcdn.com/w40/${displayCode.toLowerCase()}.png`;
+            const displayName = isUnknown
+              ? "Sconosciuto"
+              : TARGET_COUNTRY_NAMES[displayCode] ?? displayCode;
 
-        return (
-          <div
-            key={code}
-            className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3"
-          >
-            <div className="flex items-center gap-2">
-              <img
-                src={flagUrl}
-                alt={displayName}
-                className="h-6 w-auto rounded-sm"
-              />
-
-              <span className="font-medium">
-                {displayName}
-              </span>
-            </div>
-
-            <span className="text-sm text-white/60">
-              {country.value} visite
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  )}
-</section>
+            return (
+              <div
+                key={code}
+                className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3"
+              >
+                <div className="flex items-center gap-2">
+                  <img
+                    src={flagUrl}
+                    alt={displayName}
+                    className="h-6 w-auto rounded-sm"
+                  />
+                  <span className="font-medium">
+                    {displayName}
+                  </span>
+                </div>
+                <span className="text-sm text-white/60">
+                  {country.value} visite
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
 
     {/* Sorgenti */}
     <section>
@@ -4550,7 +4650,6 @@ const previewProducts = products.map((p) => ({
               <span className="font-medium capitalize">
                 {source.name}
               </span>
-
               <span className="text-sm text-white/60">
                 {source.value} visite
               </span>
@@ -4559,6 +4658,129 @@ const previewProducts = products.map((p) => ({
         </div>
       )}
     </section>
+  </div>
+) : (
+  <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/5">
+    {/* Overlay sfocato + badge PRO */}
+    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-[#0c0d12]/60 backdrop-blur-[2px]">
+      <button
+        type="button"
+        onClick={onRequirePro}
+        className="group relative h-9 w-9 overflow-visible"
+        aria-label="Disponibile con PRO"
+      >
+        <span className="absolute right-0 top-0 flex h-9 w-9 items-center justify-start overflow-hidden rounded-full border border-[#40e0d0]/50 bg-[#080b0d]/95 shadow-[0_3px_10px_rgba(0,0,0,0.35),0_0_10px_rgba(64,224,208,0.28)] transition-[width,border-color,box-shadow,background-color] duration-400 ease-out group-hover:w-[62px] group-hover:border-[#40e0d0]/80 group-hover:bg-[#091110] group-hover:shadow-[0_4px_15px_rgba(0,0,0,0.4),0_0_16px_rgba(64,224,208,0.48)] group-focus-visible:w-[62px] group-focus-visible:border-[#40e0d0]/80 group-focus-visible:bg-[#091110] group-focus-visible:shadow-[0_4px_15px_rgba(0,0,0,0.4),0_0_16px_rgba(64,224,208,0.48)]">
+          <span className="absolute left-2 top-1/2 -translate-y-1/2 whitespace-nowrap text-[9px] font-black uppercase tracking-[0.1em] text-[#d9fffa] opacity-0 transition-opacity delay-100 duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
+            PRO
+          </span>
+        </span>
+
+        <span className="absolute inset-0 grid place-items-center">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            className="h-[19px] w-[19px] overflow-visible drop-shadow-[0_2px_2px_rgba(0,44,50,0.85)]"
+            aria-hidden="true"
+          >
+            <defs>
+              <linearGradient
+                id="analyticsProGemBase"
+                x1="5"
+                y1="4"
+                x2="19"
+                y2="20"
+                gradientUnits="userSpaceOnUse"
+              >
+                <stop offset="0%" stopColor="#effffc" />
+                <stop offset="20%" stopColor="#aafbf0" />
+                <stop offset="48%" stopColor="#3bddca" />
+                <stop offset="76%" stopColor="#099e95" />
+                <stop offset="100%" stopColor="#045d5b" />
+              </linearGradient>
+
+              <linearGradient
+                id="analyticsProGemTop"
+                x1="7"
+                y1="5"
+                x2="16"
+                y2="10"
+                gradientUnits="userSpaceOnUse"
+              >
+                <stop offset="0%" stopColor="#ffffff" />
+                <stop offset="48%" stopColor="#b8fff6" />
+                <stop offset="100%" stopColor="#39cfbf" />
+              </linearGradient>
+            </defs>
+
+            <path
+              d="M6.4 5.25h11.2l3 4.15L12 19.85 3.4 9.4l3-4.15Z"
+              fill="url(#analyticsProGemBase)"
+              stroke="#d9fffa"
+              strokeWidth="0.95"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M6.4 5.25h11.2l-2.7 4.15H9.1L6.4 5.25Z"
+              fill="url(#analyticsProGemTop)"
+            />
+            <path
+              d="M6.4 5.25 9.1 9.4H3.4l3-4.15Z"
+              fill="#9effef"
+              opacity="0.82"
+            />
+            <path
+              d="m17.6 5.25-2.7 4.15h5.7l-3-4.15Z"
+              fill="#2dbdaf"
+              opacity="0.94"
+            />
+            <path d="M3.4 9.4h17.2L12 19.85 3.4 9.4Z" fill="#078f88" />
+            <path d="m3.4 9.4 8.6 10.45V9.4H3.4Z" fill="#25c5b6" />
+            <path d="M12 9.4v10.45l8.6-10.45H12Z" fill="#056963" />
+          </svg>
+        </span>
+      </button>
+
+      <p className="text-sm font-bold text-white/80">
+        Analytics avanzate con PRO
+      </p>
+
+      <p className="max-w-xs text-center text-xs text-white/50">
+        Scopri da quali paesi e sorgenti arrivano i tuoi visitatori e ottimizza la tua pagina.
+      </p>
+    </div>
+
+    {/* Sfondo “fantasma” della sezione */}
+    <div className="pointer-events-none select-none opacity-30">
+      <div className="space-y-6 p-6">
+        <div>
+          <h3 className="mb-3 text-lg font-semibold">
+            Paesi principali
+          </h3>
+          <div className="grid grid-cols-2 gap-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-14 rounded-xl border border-white/10 bg-white/5"
+              />
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <h3 className="mb-3 text-lg font-semibold">
+            Sorgenti
+          </h3>
+          <div className="grid grid-cols-2 gap-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-14 rounded-xl border border-white/10 bg-white/5"
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 )}
   </>
@@ -5489,97 +5711,97 @@ const previewProducts = products.map((p) => ({
             }`}
           >
             {layoutOption.pro && (
-  <span
-    aria-label="Disponibile con PRO"
-className="pointer-events-none absolute right-2 top-2 z-20 h-7 w-7"
-  >
-    {/* Pill che cresce verso sinistra */}
-    <span className="absolute right-0 top-0 flex h-7 w-7 items-center justify-start overflow-hidden rounded-full border border-[#40e0d0]/50 bg-[#080b0d]/95 shadow-[0_3px_10px_rgba(0,0,0,0.35),0_0_10px_rgba(64,224,208,0.28)] transition-[width,border-color,box-shadow,background-color] duration-400 ease-out group-hover:w-[54px] group-hover:border-[#40e0d0]/80 group-hover:bg-[#091110] group-hover:shadow-[0_4px_15px_rgba(0,0,0,0.4),0_0_16px_rgba(64,224,208,0.48)] group-focus-visible:w-[54px] group-focus-visible:border-[#40e0d0]/80 group-focus-visible:bg-[#091110] group-focus-visible:shadow-[0_4px_15px_rgba(0,0,0,0.4),0_0_16px_rgba(64,224,208,0.48)]">
-      <span className="absolute left-2 top-1/2 -translate-y-1/2 whitespace-nowrap text-[8px] font-black uppercase tracking-[0.1em] text-[#d9fffa] opacity-0 transition-opacity delay-100 duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
-        PRO
+    <span
+      aria-label="Disponibile con PRO"
+  className="pointer-events-none absolute right-2 top-2 z-20 h-7 w-7"
+    >
+      {/* Pill che cresce verso sinistra */}
+      <span className="absolute right-0 top-0 flex h-7 w-7 items-center justify-start overflow-hidden rounded-full border border-[#40e0d0]/50 bg-[#080b0d]/95 shadow-[0_3px_10px_rgba(0,0,0,0.35),0_0_10px_rgba(64,224,208,0.28)] transition-[width,border-color,box-shadow,background-color] duration-400 ease-out group-hover:w-[54px] group-hover:border-[#40e0d0]/80 group-hover:bg-[#091110] group-hover:shadow-[0_4px_15px_rgba(0,0,0,0.4),0_0_16px_rgba(64,224,208,0.48)] group-focus-visible:w-[54px] group-focus-visible:border-[#40e0d0]/80 group-focus-visible:bg-[#091110] group-focus-visible:shadow-[0_4px_15px_rgba(0,0,0,0.4),0_0_16px_rgba(64,224,208,0.48)]">
+        <span className="absolute left-2 top-1/2 -translate-y-1/2 whitespace-nowrap text-[8px] font-black uppercase tracking-[0.1em] text-[#d9fffa] opacity-0 transition-opacity delay-100 duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
+          PRO
+        </span>
+      </span>
+
+      {/* Diamante: resta fermo mentre la pill si espande */}
+      <span className="absolute inset-0 grid place-items-center">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          className="h-[17px] w-[17px] overflow-visible drop-shadow-[0_2px_2px_rgba(0,44,50,0.85)]"
+          aria-hidden="true"
+        >
+          <defs>
+            <linearGradient
+              id={`layoutProGemBase-${layoutOption.id}`}
+              x1="5"
+              y1="4"
+              x2="19"
+              y2="20"
+              gradientUnits="userSpaceOnUse"
+            >
+              <stop offset="0%" stopColor="#effffc" />
+              <stop offset="20%" stopColor="#aafbf0" />
+              <stop offset="48%" stopColor="#3bddca" />
+              <stop offset="76%" stopColor="#099e95" />
+              <stop offset="100%" stopColor="#045d5b" />
+            </linearGradient>
+
+            <linearGradient
+              id={`layoutProGemTop-${layoutOption.id}`}
+              x1="7"
+              y1="5"
+              x2="16"
+              y2="10"
+              gradientUnits="userSpaceOnUse"
+            >
+              <stop offset="0%" stopColor="#ffffff" />
+              <stop offset="48%" stopColor="#b8fff6" />
+              <stop offset="100%" stopColor="#39cfbf" />
+            </linearGradient>
+          </defs>
+
+          <path
+            d="M6.4 5.25h11.2l3 4.15L12 19.85 3.4 9.4l3-4.15Z"
+            fill={`url(#layoutProGemBase-${layoutOption.id})`}
+            stroke="#d9fffa"
+            strokeWidth="0.95"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M6.4 5.25h11.2l-2.7 4.15H9.1L6.4 5.25Z"
+            fill={`url(#layoutProGemTop-${layoutOption.id})`}
+          />
+          <path
+            d="M6.4 5.25 9.1 9.4H3.4l3-4.15Z"
+            fill="#9effef"
+            opacity="0.82"
+          />
+          <path
+            d="m17.6 5.25-2.7 4.15h5.7l-3-4.15Z"
+            fill="#2dbdaf"
+            opacity="0.94"
+          />
+          <path d="M3.4 9.4h17.2L12 19.85 3.4 9.4Z" fill="#078f88" />
+          <path d="m3.4 9.4 8.6 10.45V9.4H3.4Z" fill="#25c5b6" />
+          <path d="M12 9.4v10.45l8.6-10.45H12Z" fill="#056963" />
+          <path
+            d="M7.1 6.4h4.75L9.7 8.45H5.65L7.1 6.4Z"
+            fill="#ffffff"
+            opacity="0.62"
+          />
+          <path
+            d="M3.4 9.4h17.2M9.1 9.4 12 19.85l2.9-10.45M6.4 5.25l2.7 4.15m8.5-4.15-2.7 4.15"
+            fill="none"
+            stroke="#034c49"
+            strokeWidth="0.55"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            opacity="0.5"
+          />
+        </svg>
       </span>
     </span>
-
-    {/* Diamante: resta fermo mentre la pill si espande */}
-    <span className="absolute inset-0 grid place-items-center">
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        className="h-[17px] w-[17px] overflow-visible drop-shadow-[0_2px_2px_rgba(0,44,50,0.85)]"
-        aria-hidden="true"
-      >
-        <defs>
-          <linearGradient
-            id={`layoutProGemBase-${layoutOption.id}`}
-            x1="5"
-            y1="4"
-            x2="19"
-            y2="20"
-            gradientUnits="userSpaceOnUse"
-          >
-            <stop offset="0%" stopColor="#effffc" />
-            <stop offset="20%" stopColor="#aafbf0" />
-            <stop offset="48%" stopColor="#3bddca" />
-            <stop offset="76%" stopColor="#099e95" />
-            <stop offset="100%" stopColor="#045d5b" />
-          </linearGradient>
-
-          <linearGradient
-            id={`layoutProGemTop-${layoutOption.id}`}
-            x1="7"
-            y1="5"
-            x2="16"
-            y2="10"
-            gradientUnits="userSpaceOnUse"
-          >
-            <stop offset="0%" stopColor="#ffffff" />
-            <stop offset="48%" stopColor="#b8fff6" />
-            <stop offset="100%" stopColor="#39cfbf" />
-          </linearGradient>
-        </defs>
-
-        <path
-          d="M6.4 5.25h11.2l3 4.15L12 19.85 3.4 9.4l3-4.15Z"
-          fill={`url(#layoutProGemBase-${layoutOption.id})`}
-          stroke="#d9fffa"
-          strokeWidth="0.95"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M6.4 5.25h11.2l-2.7 4.15H9.1L6.4 5.25Z"
-          fill={`url(#layoutProGemTop-${layoutOption.id})`}
-        />
-        <path
-          d="M6.4 5.25 9.1 9.4H3.4l3-4.15Z"
-          fill="#9effef"
-          opacity="0.82"
-        />
-        <path
-          d="m17.6 5.25-2.7 4.15h5.7l-3-4.15Z"
-          fill="#2dbdaf"
-          opacity="0.94"
-        />
-        <path d="M3.4 9.4h17.2L12 19.85 3.4 9.4Z" fill="#078f88" />
-        <path d="m3.4 9.4 8.6 10.45V9.4H3.4Z" fill="#25c5b6" />
-        <path d="M12 9.4v10.45l8.6-10.45H12Z" fill="#056963" />
-        <path
-          d="M7.1 6.4h4.75L9.7 8.45H5.65L7.1 6.4Z"
-          fill="#ffffff"
-          opacity="0.62"
-        />
-        <path
-          d="M3.4 9.4h17.2M9.1 9.4 12 19.85l2.9-10.45M6.4 5.25l2.7 4.15m8.5-4.15-2.7 4.15"
-          fill="none"
-          stroke="#034c49"
-          strokeWidth="0.55"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="0.5"
-        />
-      </svg>
-    </span>
-  </span>
-)}
+  )}
 
             {layoutOption.id === "classic" && (
               <div className="relative h-24 rounded-xl border border-white/10 bg-gradient-to-br from-[#222632] to-[#0c0d12]">
@@ -8082,6 +8304,227 @@ value={displayName ?? ""}
         </div>
       </div>
 
+      <div className="rounded-2xl border border-white/10 bg-[#0c0d12] p-4">
+  <div className="flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <p className="text-sm font-bold text-white">
+        Targeting link
+      </p>
+
+      <p className="mt-1 text-xs text-white/55">
+        Mostra questo link solo a visitatori specifici.
+      </p>
+    </div>
+
+   {plan !== "premium" && (
+  <button
+    type="button"
+    onClick={onRequirePro}
+    className="group relative h-7 w-7 shrink-0 overflow-visible"
+    aria-label="Disponibile con PRO"
+  >
+    <span className="absolute right-0 top-0 flex h-7 w-7 items-center justify-start overflow-hidden rounded-full border border-[#40e0d0]/50 bg-[#080b0d]/95 shadow-[0_3px_10px_rgba(0,0,0,0.35),0_0_10px_rgba(64,224,208,0.28)] transition-[width,border-color,box-shadow,background-color] duration-400 ease-out group-hover:w-[54px] group-hover:border-[#40e0d0]/80 group-hover:bg-[#091110] group-hover:shadow-[0_4px_15px_rgba(0,0,0,0.4),0_0_16px_rgba(64,224,208,0.48)] group-focus-visible:w-[54px] group-focus-visible:border-[#40e0d0]/80 group-focus-visible:bg-[#091110] group-focus-visible:shadow-[0_4px_15px_rgba(0,0,0,0.4),0_0_16px_rgba(64,224,208,0.48)]">
+      <span className="absolute left-2 top-1/2 -translate-y-1/2 whitespace-nowrap text-[8px] font-black uppercase tracking-[0.1em] text-[#d9fffa] opacity-0 transition-opacity delay-100 duration-200 group-hover:opacity-100 group-focus-visible:opacity-100">
+        PRO
+      </span>
+    </span>
+
+    <span className="absolute inset-0 grid place-items-center">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        className="h-[17px] w-[17px] overflow-visible drop-shadow-[0_2px_2px_rgba(0,44,50,0.85)]"
+        aria-hidden="true"
+      >
+        <defs>
+          <linearGradient
+            id="newLinkTargetingProGemBase"
+            x1="5"
+            y1="4"
+            x2="19"
+            y2="20"
+            gradientUnits="userSpaceOnUse"
+          >
+            <stop offset="0%" stopColor="#effffc" />
+            <stop offset="20%" stopColor="#aafbf0" />
+            <stop offset="48%" stopColor="#3bddca" />
+            <stop offset="76%" stopColor="#099e95" />
+            <stop offset="100%" stopColor="#045d5b" />
+          </linearGradient>
+
+          <linearGradient
+            id="newLinkTargetingProGemTop"
+            x1="7"
+            y1="5"
+            x2="16"
+            y2="10"
+            gradientUnits="userSpaceOnUse"
+          >
+            <stop offset="0%" stopColor="#ffffff" />
+            <stop offset="48%" stopColor="#b8fff6" />
+            <stop offset="100%" stopColor="#39cfbf" />
+          </linearGradient>
+        </defs>
+
+        <path
+          d="M6.4 5.25h11.2l3 4.15L12 19.85 3.4 9.4l3-4.15Z"
+          fill="url(#newLinkTargetingProGemBase)"
+          stroke="#d9fffa"
+          strokeWidth="0.95"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M6.4 5.25h11.2l-2.7 4.15H9.1L6.4 5.25Z"
+          fill="url(#newLinkTargetingProGemTop)"
+        />
+        <path
+          d="M6.4 5.25 9.1 9.4H3.4l3-4.15Z"
+          fill="#9effef"
+          opacity="0.82"
+        />
+        <path
+          d="m17.6 5.25-2.7 4.15h5.7l-3-4.15Z"
+          fill="#2dbdaf"
+          opacity="0.94"
+        />
+        <path d="M3.4 9.4h17.2L12 19.85 3.4 9.4Z" fill="#078f88" />
+        <path d="m3.4 9.4 8.6 10.45V9.4H3.4Z" fill="#25c5b6" />
+        <path d="M12 9.4v10.45l8.6-10.45H12Z" fill="#056963" />
+      </svg>
+    </span>
+  </button>
+)}
+  </div>
+
+<div className={`mt-4 grid gap-4 ${!(plan === "premium") ? 'pointer-events-none opacity-45' : ''}`}>
+    <div>
+      <p className="text-xs font-bold text-white/75">Paesi</p>
+      <p className="mt-1 text-xs text-white/45">
+        Lascia vuoto per mostrarlo ovunque.
+      </p>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {[
+          ['IT', 'Italia'],
+          ['MT', 'Malta'],
+          ['US', 'Stati Uniti'],
+          ['GB', 'Regno Unito'],
+          ['DE', 'Germania'],
+          ['FR', 'Francia'],
+          ['ES', 'Spagna'],
+        ].map(([code, label]) => {
+          const selected = newLinkTargetCountries.includes(code);
+
+          return (
+            <button
+              key={code}
+              type="button"
+              onClick={() =>
+                setNewLinkTargetCountries(
+                  selected
+                    ? newLinkTargetCountries.filter((item) => item !== code)
+                    : [...newLinkTargetCountries, code],
+                )
+              }
+              className={`rounded-lg border px-3 py-2 text-xs font-bold transition ${
+                selected
+                  ? 'border-[#00d084] bg-[#00d084] text-[#07100d]'
+                  : 'border-white/15 bg-white/5 text-white/70 hover:border-white/35'
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+
+    <div>
+      <p className="text-xs font-bold text-white/75">Dispositivo</p>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {[
+          ['mobile', '📱 Mobile'],
+          ['desktop', '🖥️ Desktop'],
+          ['tablet', '📲 Tablet'],
+        ].map(([device, label]) => {
+          const selected = newLinkTargetDevices.includes(device);
+
+          return (
+            <button
+              key={device}
+              type="button"
+              onClick={() =>
+                setNewLinkTargetDevices(
+                  selected
+                    ? newLinkTargetDevices.filter((item) => item !== device)
+                    : [...newLinkTargetDevices, device],
+                )
+              }
+              className={`rounded-lg border px-3 py-2 text-xs font-bold transition ${
+                selected
+                  ? 'border-[#00d084] bg-[#00d084] text-[#07100d]'
+                  : 'border-white/15 bg-white/5 text-white/70 hover:border-white/35'
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+
+    <div>
+      <p className="text-xs font-bold text-white/75">Provenienza</p>
+
+      <p className="mt-1 text-xs text-white/45">
+        Mostra il link in base alla sorgente del visitatore.
+      </p>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {[
+          ['instagram', 'Instagram'],
+          ['tiktok', 'TikTok'],
+          ['youtube', 'YouTube'],
+          ['facebook', 'Facebook'],
+          ['google', 'Google'],
+          ['other', 'Diretto / Altro'],
+        ].map(([source, label]) => {
+          const selected = newLinkTargetSources.includes(source);
+
+          return (
+            <button
+              key={source}
+              type="button"
+              onClick={() =>
+                setNewLinkTargetSources(
+                  selected
+                    ? newLinkTargetSources.filter((item) => item !== source)
+                    : [...newLinkTargetSources, source],
+                )
+              }
+              className={`rounded-lg border px-3 py-2 text-xs font-bold transition ${
+                selected
+                  ? 'border-[#00d084] bg-[#00d084] text-[#07100d]'
+                  : 'border-white/15 bg-white/5 text-white/70 hover:border-white/35'
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  </div>
+
+  {plan === "premium" && (
+  <p className="mt-4 text-xs text-white/45">
+    Se selezioni più categorie, devono combaciare tutte. All’interno della
+    stessa categoria basta una corrispondenza.
+  </p>
+  )}
+</div>
+
       <button
         type="submit"
         disabled={savingLink}
@@ -8778,60 +9221,61 @@ onResetIconObjectPosition={() => {
           </svg>
         </div>
 
-        <p className="mb-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#78f5df]">
-          Piano PRO
-        </p>
+          <p className="mb-2 text-[11px] font-black uppercase tracking-[0.18em] text-[#78f5df]">
+  Piano PRO
+</p>
 
-        <h2
-          id="pro-modal-title"
-          className="max-w-[18rem] text-2xl font-black tracking-tight text-white sm:text-3xl"
-        >
-          Sblocca {lockedFeature}
-        </h2>
+<h2
+  id="pro-modal-title"
+  className="max-w-[18rem] text-2xl font-black tracking-tight text-white sm:text-3xl"
+>
+  Sblocca tutte le funzioni PRO
+</h2>
 
-        <p className="mt-3 text-sm leading-6 text-white/60">
-          Dai più carattere al tuo profilo con uno sfondo video personalizzato:
-          movimento, atmosfera e un risultato che si distingue davvero.
-        </p>
+<p className="mt-3 text-sm leading-6 text-white/60">
+  Sblocca le funzionalità PRO di BioLinkr: layout esclusivi, targeting avanzato e A/B test.
+</p>
 
-        <div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-4">
-          <div className="flex items-start gap-3">
-            <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#40e0d0]/15 text-xs font-black text-[#8fffe9]">
-              ✓
-            </span>
+<div className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-4">
+  <div className="flex items-start gap-3">
+    <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#40e0d0]/15 text-xs font-black text-[#8fffe9]">
+      ✓
+    </span>
 
-            <p className="text-sm leading-5 text-white/75">
-              Carica un tuo video e rendi il tuo profilo più vivo, riconoscibile
-              e memorabile.
-            </p>
-          </div>
-        </div>
+    <p className="text-sm leading-5 text-white/75">
+      Strumenti premium per distinguerti e convertire di più.
+    </p>
+  </div>
+</div>
 
-        <div className="mt-7 grid gap-3">
-          <button
-            type="button"
-            onClick={() => {
-  setProModalOpen(false);
-  setActiveSection("pro");
-  window.scrollTo({ top: 0, behavior: "smooth" });
-}}
-            className="rounded-xl bg-[#40e0d0] px-5 py-3.5 text-sm font-black text-[#061110] shadow-[0_8px_24px_rgba(64,224,208,0.25)] transition hover:bg-[#7af7e4] hover:shadow-[0_10px_30px_rgba(64,224,208,0.35)]"
-          >
-            Scopri PRO
-          </button>
+<div className="mt-7 grid gap-3">
+  <button
+    type="button"
+    onClick={() => {
+      setProModalOpen(false);
+      router.push("/dashboard/upgrade");
+    }}
+    className="rounded-xl bg-[#40e0d0] px-5 py-3.5 text-sm font-black text-[#061110] shadow-[0_8px_24px_rgba(64,224,208,0.25)] transition hover:bg-[#7af7e4] hover:shadow-[0_10px_30px_rgba(64,224,208,0.35)]"
+  >
+    Prova BioLinkr Pro · 0,00 €
+  </button>
 
-          <button
-            type="button"
-            onClick={() => setProModalOpen(false)}
-            className="rounded-xl px-5 py-3 text-sm font-bold text-white/55 transition hover:bg-white/[0.05] hover:text-white"
-          >
-            Continua con il piano gratuito
-          </button>
+  <p className="mt-1 text-center text-[11px] text-white/45">
+    Prova gratuita di 7 giorni. Nessun addebito durante la prova.
+  </p>
+
+  <button
+    type="button"
+    onClick={() => setProModalOpen(false)}
+    className="rounded-xl px-5 py-3 text-sm font-bold text-white/55 transition hover:bg-white/[0.05] hover:text-white"
+  >
+    Continua con il piano gratuito
+  </button>
+</div>
         </div>
       </div>
     </div>
-  </div>
-)}
+  )}
 
       {mobilePreviewOpen && (
   <div className="fixed inset-0 z-[100] bg-[#0c0d12] lg:hidden">
