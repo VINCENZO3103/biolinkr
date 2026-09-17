@@ -1419,7 +1419,9 @@ function SortableSocialPreviewIcon({
   );
 }
 
-function flagFromCode(code: string) {
+function flagFromCode(code: string | undefined): string {
+  if (!code || code === "Unknown") return "🌍";
+
   const map: Record<string, string> = {
     IT: "🇮🇹",
     US: "🇺🇸",
@@ -1428,10 +1430,13 @@ function flagFromCode(code: string) {
     DE: "🇩🇪",
     ES: "🇪🇸",
     BR: "🇧🇷",
+    MT: "🇲🇹",
     // aggiungi quelli che ti servono
   };
+
   return map[code.toUpperCase()] ?? "🌍";
 }
+
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -1616,15 +1621,15 @@ const [newLinkImagePreview, setNewLinkImagePreview] = useState("");
   const [weekViews, setWeekViews] = useState(0);
 
   const [countriesByVisits, setCountriesByVisits] = useState<
-  Array<{ country_code: string; visits: number }>
+  Array<{ name: string; value: number }>
 >([]);
 
 const [devicesByVisits, setDevicesByVisits] = useState<
-  Array<{ device_type: string; visits: number }>
+  Array<{ name: string; value: number }>
 >([]);
 
 const [sourcesByVisits, setSourcesByVisits] = useState<
-  Array<{ referrer: string; visits: number }>
+  Array<{ name: string; value: number }>
 >([]);
 
 const [geoAnalyticsLoading, setGeoAnalyticsLoading] = useState(false);
@@ -1937,139 +1942,151 @@ if (username) {
       .sort((a, b) => b.visits - a.visits || a.label.localeCompare(b.label));
   }
 
-  async function loadAnalytics(profileId: string, profileLinks: BioLink[]) {
+async function loadAnalytics(
+  profileId: string,
+  profileLinks: BioLink[],
+) {
   setAnalyticsLoading(true);
 
-  const now = new Date();
-  const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  try {
+    const linkIds = profileLinks
+      .map((link) => link.id)
+      .filter((id): id is string => Boolean(id));
 
-  const linkIds = profileLinks.map((link) => link.id);
+    const [viewsResult, clicksResult, socialClicksResult] =
+      await Promise.all([
+        supabase
+          .from("profile_views")
+          .select("viewed_at, utm_source")
+          .eq("profile_id", profileId),
 
-  const viewsPromise = supabase
-    .from("profile_views")
-    .select(
-      "profile_id, viewed_at, utm_source, utm_medium, utm_campaign, utm_content"
-    )
-    .eq("profile_id", profileId);
+        linkIds.length > 0
+          ? supabase
+              .from("link_clicks")
+              .select("link_id, clicked_at")
+              .in("link_id", linkIds)
+          : Promise.resolve({ data: [], error: null }),
 
-  const clicksPromise =
-    linkIds.length > 0
-      ? supabase
-          .from("link_clicks")
-          .select("link_id, clicked_at")
-          .in("link_id", linkIds)
-      : Promise.resolve({ data: [], error: null });
+        supabase
+          .from("social_clicks")
+          .select("platform, clicked_at, profile_id")
+          .eq("profile_id", profileId),
+      ]);
 
-  const socialClicksPromise = supabase
-    .from("social_clicks")
-    .select("platform, clicked_at")
-    .eq("profile_id", profileId);
+    if (viewsResult.error) {
+      throw new Error(
+        `Errore nel caricamento delle visite: ${viewsResult.error.message}`,
+      );
+    }
 
-  const [viewsResult, clicksResult, socialClicksResult] = await Promise.all([
-    viewsPromise,
-    clicksPromise,
-    socialClicksPromise,
-  ]);
+    if (clicksResult.error) {
+      throw new Error(
+        `Errore nel caricamento dei click: ${clicksResult.error.message}`,
+      );
+    }
 
-  setAnalyticsLoading(false);
+    if (socialClicksResult.error) {
+      throw new Error(
+        `Errore nel caricamento dei click social: ${socialClicksResult.error.message}`,
+      );
+    }
 
-  if (viewsResult.error) {
-    setMessage(
-      `Errore nel caricamento delle visite: ${viewsResult.error.message}`
+    const views = viewsResult.data ?? [];
+    const clicks = clicksResult.data ?? [];
+    const socialClicks = socialClicksResult.data ?? [];
+
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    let viewsLast24Hours = 0;
+    let viewsLast7Days = 0;
+
+    const sourceCounts: Record<string, number> = {};
+
+    for (const view of views) {
+      const viewedAt = new Date(view.viewed_at);
+
+      if (viewedAt >= oneDayAgo) {
+        viewsLast24Hours += 1;
+      }
+
+      if (viewedAt >= sevenDaysAgo) {
+        viewsLast7Days += 1;
+      }
+
+      const source = view.utm_source ?? "Diretto/non tracciato";
+      sourceCounts[source] = (sourceCounts[source] ?? 0) + 1;
+    }
+
+    const linkClickTotals: Record<string, number> = {};
+    let clicksLast24Hours = 0;
+    let clicksLast7Days = 0;
+
+    for (const click of clicks) {
+      linkClickTotals[click.link_id] =
+        (linkClickTotals[click.link_id] ?? 0) + 1;
+
+      const clickedAt = new Date(click.clicked_at);
+
+      if (clickedAt >= oneDayAgo) {
+        clicksLast24Hours += 1;
+      }
+
+      if (clickedAt >= sevenDaysAgo) {
+        clicksLast7Days += 1;
+      }
+    }
+
+    const socialClickTotals: Record<string, number> = {};
+    let socialClicksLast24Hours = 0;
+    let socialClicksLast7Days = 0;
+
+    for (const socialClick of socialClicks) {
+      const platform = socialClick.platform ?? "other";
+
+      socialClickTotals[platform] =
+        (socialClickTotals[platform] ?? 0) + 1;
+
+      const clickedAt = new Date(socialClick.clicked_at);
+
+      if (clickedAt >= oneDayAgo) {
+        socialClicksLast24Hours += 1;
+      }
+
+      if (clickedAt >= sevenDaysAgo) {
+        socialClicksLast7Days += 1;
+      }
+    }
+
+    setTotalViews(views.length);
+    setTodayViews(viewsLast24Hours);
+    setWeekViews(viewsLast7Days);
+
+    setTotalClicks(clicks.length);
+    setTodayClicks(clicksLast24Hours);
+    setWeekClicks(clicksLast7Days);
+    setClicksByLink(linkClickTotals);
+
+    setTotalSocialClicks(socialClicks.length);
+    setTodaySocialClicks(socialClicksLast24Hours);
+    setWeekSocialClicks(socialClicksLast7Days);
+    setSocialClicksByPlatform(socialClickTotals);
+
+    setTrafficSources(
+      makeTrafficRows(sourceCounts, views.length),
     );
-    return;
-  }
+  } catch (error) {
+    console.error("Errore analytics dashboard:", error);
 
-  if (clicksResult.error) {
     setMessage(
-      `Errore nel caricamento dei click: ${clicksResult.error.message}`
+      error instanceof Error
+        ? error.message
+        : "Errore nel caricamento delle analytics",
     );
-    return;
+  } finally {
+    setAnalyticsLoading(false);
   }
-
-  if (socialClicksResult.error) {
-    setMessage(
-      `Errore nel caricamento dei click social: ${socialClicksResult.error.message}`
-    );
-    return;
-  }
-
-  const views = (viewsResult.data ?? []) as ProfileView[];
-  const clicks = (clicksResult.data ?? []) as LinkClick[];
-  const socialClicks = (socialClicksResult.data ?? []) as SocialClick[];
-
-  let viewsLast24Hours = 0;
-  let viewsLast7Days = 0;
-  const sourceCounts: Record<string, number> = {};
-
-  for (const view of views) {
-    const viewedAt = new Date(view.viewed_at);
-
-    if (viewedAt >= oneDayAgo) {
-      viewsLast24Hours += 1;
-    }
-
-    if (viewedAt >= sevenDaysAgo) {
-      viewsLast7Days += 1;
-    }
-
-    const sourceLabel = view.utm_source ?? "Diretto / non tracciato";
-    sourceCounts[sourceLabel] = (sourceCounts[sourceLabel] ?? 0) + 1;
-  }
-
-  const totals: Record<string, number> = {};
-  let clicksLast24Hours = 0;
-  let clicksLast7Days = 0;
-
-  for (const click of clicks) {
-    totals[click.link_id] = (totals[click.link_id] ?? 0) + 1;
-
-    const clickedAt = new Date(click.clicked_at);
-
-    if (clickedAt >= oneDayAgo) {
-      clicksLast24Hours += 1;
-    }
-
-    if (clickedAt >= sevenDaysAgo) {
-      clicksLast7Days += 1;
-    }
-  }
-
-  const socialTotals: Record<string, number> = {};
-  let socialClicksLast24Hours = 0;
-  let socialClicksLast7Days = 0;
-
-  for (const socialClick of socialClicks) {
-    socialTotals[socialClick.platform] =
-      (socialTotals[socialClick.platform] ?? 0) + 1;
-
-    const clickedAt = new Date(socialClick.clicked_at);
-
-    if (clickedAt >= oneDayAgo) {
-      socialClicksLast24Hours += 1;
-    }
-
-    if (clickedAt >= sevenDaysAgo) {
-      socialClicksLast7Days += 1;
-    }
-  }
-
-  setTotalViews(views.length);
-  setTodayViews(viewsLast24Hours);
-  setWeekViews(viewsLast7Days);
-
-  setTotalClicks(clicks.length);
-  setTodayClicks(clicksLast24Hours);
-  setWeekClicks(clicksLast7Days);
-  setClicksByLink(totals);
-
-  setTotalSocialClicks(socialClicks.length);
-  setTodaySocialClicks(socialClicksLast24Hours);
-  setWeekSocialClicks(socialClicksLast7Days);
-  setSocialClicksByPlatform(socialTotals);
-
-  setTrafficSources(makeTrafficRows(sourceCounts, views.length));
 }
 
 async function loadGeoAnalytics(username: string) {
@@ -4162,66 +4179,89 @@ const previewProducts = products.map((p) => ({
   </p>
 ) : (
   <>
-    {/* Paesi */}
-    <section>
-      <h3 className="text-lg font-semibold mb-3">Paesi principali</h3>
-      <div className="grid grid-cols-2 gap-3">
-        {countriesByVisits.slice(0, 6).map((c) => (
-          <div
-            key={c.country_code}
-            className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3"
-          >
-            <div className="flex items-center gap-2">
-              <span className="text-xl">
-                {flagFromCode(c.country_code)}
-              </span>
-              <span className="font-medium">
-                {c.country_code.toUpperCase()}
-              </span>
-            </div>
-            <div className="text-sm text-white/60">
-              {c.visits} visite
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
+  {/* Paesi */}
+<section>
+  <h3 className="mb-3 text-lg font-semibold">
+    Paesi principali
+  </h3>
 
-    {/* Dispositivi */}
-    <section className="mt-6">
-      <h3 className="text-lg font-semibold mb-3">Dispositivi</h3>
-      <div className="grid grid-cols-3 gap-3">
-        {devicesByVisits.map((d) => (
-          <div
-            key={d.device_type}
-            className="rounded-xl border border-white/10 bg-white/5 p-3 text-center"
-          >
-            <div className="text-sm text-white/60 capitalize">
-              {d.device_type}
-            </div>
-            <div className="text-lg font-semibold">{d.visits}</div>
-          </div>
-        ))}
-      </div>
-    </section>
+  <div className="grid grid-cols-2 gap-3">
+    {countriesByVisits.slice(0, 6).map((country) => {
+      const code = country.name || "Unknown";
 
-    {/* Sorgenti */}
-    <section className="mt-6">
-      <h3 className="text-lg font-semibold mb-3">Sorgenti</h3>
-      <div className="grid grid-cols-2 gap-3">
-        {sourcesByVisits.map((s) => (
-          <div
-            key={s.referrer}
-            className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3"
-          >
-            <span className="font-medium capitalize">{s.referrer}</span>
-            <span className="text-sm text-white/60">
-              {s.visits} visite
+      return (
+        <div
+          key={code}
+          className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3"
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-xl">
+              {flagFromCode(code)}
+            </span>
+
+            <span className="font-medium">
+              {code === "Unknown"
+                ? "Sconosciuto"
+                : code.toUpperCase()}
             </span>
           </div>
-        ))}
+
+          <div className="text-sm text-white/60">
+            {country.value} visite
+          </div>
+        </div>
+      );
+    })}
+  </div>
+</section>
+
+   {/* Dispositivi */}
+<section className="mt-6">
+  <h3 className="mb-3 text-lg font-semibold">
+    Dispositivi
+  </h3>
+
+  <div className="grid grid-cols-3 gap-3">
+    {devicesByVisits.map((device) => (
+      <div
+        key={device.name}
+        className="rounded-xl border border-white/10 bg-white/5 p-3 text-center"
+      >
+        <div className="text-sm capitalize text-white/60">
+          {device.name}
+        </div>
+
+        <div className="text-lg font-semibold">
+          {device.value}
+        </div>
       </div>
-    </section>
+    ))}
+  </div>
+</section>
+
+   {/* Sorgenti */}
+<section className="mt-6">
+  <h3 className="mb-3 text-lg font-semibold">
+    Sorgenti
+  </h3>
+
+  <div className="grid grid-cols-2 gap-3">
+    {sourcesByVisits.map((source) => (
+      <div
+        key={source.name}
+        className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3"
+      >
+        <span className="font-medium capitalize">
+          {source.name}
+        </span>
+
+        <span className="text-sm text-white/60">
+          {source.value} visite
+        </span>
+      </div>
+    ))}
+  </div>
+</section>
   </>
 )}
 
