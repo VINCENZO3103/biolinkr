@@ -7,18 +7,12 @@ export async function GET(
 ) {
   const { username } = await params;
 
-  if (!username) {
-    return NextResponse.json(
-      { error: "Username mancante" },
-      { status: 400 }
-    );
-  }
-
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
   const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+  // 1. Ottieni il profile_id
   const profileRes = await supabase
     .from("profiles")
     .select("id")
@@ -27,70 +21,56 @@ export async function GET(
 
   if (profileRes.error || !profileRes.data) {
     return NextResponse.json(
-      { error: "Profilo non trovato" },
+      { error: "Profilo non trovato", detail: profileRes.error?.message },
       { status: 404 }
     );
   }
 
   const profileId = profileRes.data.id;
 
-  console.log("analytics: profileId=", profileId);
-
-  // Test diretto: esegui una query semplice per verificare
-  const testRes = await supabase
+  // 2. Query diretta per ottenere tutte le visite
+  const visitsRes = await supabase
     .from("profile_views")
-    .select("profile_id, country_code, device_type, referrer")
-    .eq("profile_id", profileId)
-    .limit(5);
-
-  console.log("analytics: testRes=", testRes);
-
-  // Totale visite
-  const totalRes = await supabase
-    .from("profile_views")
-    .select("*", { count: "exact", head: true })
+    .select("country_code, device_type, referrer")
     .eq("profile_id", profileId);
 
-  const totalVisits = totalRes.count ?? 0;
+  if (visitsRes.error) {
+    return NextResponse.json(
+      { error: "Errore nel recupero visite", detail: visitsRes.error.message },
+      { status: 500 }
+    );
+  }
 
-  // Paesi
-  const countriesRes = await supabase.rpc(
-    "get_profile_views_by_country",
-    { p_profile_id: profileId }
-  );
+  const visits = visitsRes.data || [];
 
-  const countries = Array.isArray(countriesRes.data)
-    ? countriesRes.data.map((c: any) => ({
-        country_code: String(c.country_code ?? "unknown"),
-        visits: Number(c.visits ?? 0),
-      }))
-    : [];
+  // 3. Calcola le statistiche
+  const totalVisits = visits.length;
 
-  // Device
-  const devicesRes = await supabase.rpc(
-    "get_profile_views_by_device",
-    { p_profile_id: profileId }
-  );
+  const countryMap = new Map<string, number>();
+  const deviceMap = new Map<string, number>();
+  const sourceMap = new Map<string, number>();
 
-  const devices = Array.isArray(devicesRes.data)
-    ? devicesRes.data.map((d: any) => ({
-        device_type: String(d.device_type ?? "unknown"),
-        visits: Number(d.visits ?? 0),
-      }))
-    : [];
+  for (const v of visits) {
+    const country = v.country_code ?? "Unknown";
+    const device = v.device_type ?? "Unknown";
+    const source = v.referrer ?? "other";
 
-  // Sorgenti
-  const sourcesRes = await supabase.rpc(
-    "get_profile_views_by_source",
-    { p_profile_id: profileId }
-  );
+    countryMap.set(country, (countryMap.get(country) || 0) + 1);
+    deviceMap.set(device, (deviceMap.get(device) || 0) + 1);
+    sourceMap.set(source, (sourceMap.get(source) || 0) + 1);
+  }
 
-  const sources = Array.isArray(sourcesRes.data)
-    ? sourcesRes.data.map((s: any) => ({
-        referrer: String(s.referrer ?? "unknown"),
-        visits: Number(s.visits ?? 0),
-      }))
-    : [];
+  const countries = Array.from(countryMap.entries())
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
+
+  const devices = Array.from(deviceMap.entries())
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
+
+  const sources = Array.from(sourceMap.entries())
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
 
   return NextResponse.json({
     totalVisits,
