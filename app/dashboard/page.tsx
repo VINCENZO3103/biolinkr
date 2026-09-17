@@ -67,6 +67,9 @@ type BioLink = {
   profile_id: string;
   title: string;
   url: string;
+    target_countries: string[];
+  target_devices: string[];
+  target_sources: string[];
   position: number;
   starts_at: string | null;
   ends_at: string | null;
@@ -156,6 +159,15 @@ type SortableLinkItemProps = {
   editingTitle: string;
   editingUrl: string;
   editingIconUrl: string;
+
+    editingTargetCountries: string[];
+  editingTargetDevices: string[];
+  editingTargetSources: string[];
+  onTargetCountriesChange: (countries: string[]) => void;
+  onTargetDevicesChange: (devices: string[]) => void;
+  onTargetSourcesChange: (sources: string[]) => void;
+  isPro: boolean;
+  onRequirePro: () => void;
 
   editingIconObjectX: number;
   editingIconObjectY: number;
@@ -334,6 +346,15 @@ function SortableLinkItem({
 
   editingIconObjectX,
   editingIconObjectY,
+
+    editingTargetCountries,
+  editingTargetDevices,
+  editingTargetSources,
+  onTargetCountriesChange,
+  onTargetDevicesChange,
+  onTargetSourcesChange,
+  isPro,
+  onRequirePro,
 
   editingIconSize,
   editingIconPositionX,
@@ -829,6 +850,169 @@ function SortableLinkItem({
               </div>
             )}
           </div>
+
+          <div className="rounded-2xl border border-white/10 bg-[#17181e] p-4">
+  <div className="flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <p className="text-sm font-bold text-white">
+        Targeting link
+      </p>
+
+      <p className="mt-1 text-xs text-white/45">
+        Mostra questo link solo a visitatori specifici.
+      </p>
+    </div>
+
+    {!isPro && (
+      <button
+        type="button"
+        onClick={onRequirePro}
+        className="rounded-lg border border-[#00d084]/35 bg-[#00d084]/10 px-3 py-2 text-xs font-black text-[#5cf0bd] transition hover:bg-[#00d084]/20"
+      >
+        PRO
+      </button>
+    )}
+  </div>
+
+  <div className={`mt-4 grid gap-4 ${!isPro ? "pointer-events-none opacity-45" : ""}`}>
+    <div>
+      <p className="text-xs font-bold text-white/75">
+        Paesi
+      </p>
+
+      <p className="mt-1 text-xs text-white/45">
+        Lascia vuoto per mostrarlo ovunque.
+      </p>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {[
+          ["IT", "🇮🇹 Italia"],
+          ["MT", "🇲🇹 Malta"],
+          ["US", "🇺🇸 Stati Uniti"],
+          ["GB", "🇬🇧 Regno Unito"],
+          ["DE", "🇩🇪 Germania"],
+          ["FR", "🇫🇷 Francia"],
+          ["ES", "🇪🇸 Spagna"],
+        ].map(([code, label]) => {
+          const selected = editingTargetCountries.includes(code);
+
+          return (
+            <button
+              key={code}
+              type="button"
+              onClick={() =>
+                onTargetCountriesChange(
+                  selected
+                    ? editingTargetCountries.filter((item) => item !== code)
+                    : [...editingTargetCountries, code],
+                )
+              }
+              className={`rounded-lg border px-3 py-2 text-xs font-bold transition ${
+                selected
+                  ? "border-[#00d084] bg-[#00d084] text-[#07100d]"
+                  : "border-white/15 bg-white/5 text-white/70 hover:border-white/35"
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+
+    <div>
+      <p className="text-xs font-bold text-white/75">
+        Dispositivo
+      </p>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {[
+          ["mobile", "📱 Mobile"],
+          ["desktop", "🖥️ Desktop"],
+          ["tablet", "📲 Tablet"],
+        ].map(([device, label]) => {
+          const selected = editingTargetDevices.includes(device);
+
+          return (
+            <button
+              key={device}
+              type="button"
+              onClick={() =>
+                onTargetDevicesChange(
+                  selected
+                    ? editingTargetDevices.filter(
+                        (item) => item !== device,
+                      )
+                    : [...editingTargetDevices, device],
+                )
+              }
+              className={`rounded-lg border px-3 py-2 text-xs font-bold transition ${
+                selected
+                  ? "border-[#00d084] bg-[#00d084] text-[#07100d]"
+                  : "border-white/15 bg-white/5 text-white/70 hover:border-white/35"
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+
+    <div>
+      <p className="text-xs font-bold text-white/75">
+        Provenienza
+      </p>
+
+      <p className="mt-1 text-xs text-white/45">
+        Mostra il link in base alla sorgente del visitatore.
+      </p>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {[
+          ["instagram", "Instagram"],
+          ["tiktok", "TikTok"],
+          ["youtube", "YouTube"],
+          ["facebook", "Facebook"],
+          ["google", "Google"],
+          ["other", "Diretto / Altro"],
+        ].map(([source, label]) => {
+          const selected = editingTargetSources.includes(source);
+
+          return (
+            <button
+              key={source}
+              type="button"
+              onClick={() =>
+                onTargetSourcesChange(
+                  selected
+                    ? editingTargetSources.filter(
+                        (item) => item !== source,
+                      )
+                    : [...editingTargetSources, source],
+                )
+              }
+              className={`rounded-lg border px-3 py-2 text-xs font-bold transition ${
+                selected
+                  ? "border-[#00d084] bg-[#00d084] text-[#07100d]"
+                  : "border-white/15 bg-white/5 text-white/70 hover:border-white/35"
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  </div>
+
+  {isPro && (
+    <p className="mt-4 text-xs text-white/45">
+      Se selezioni più categorie, devono combaciare tutte. All’interno
+      della stessa categoria basta una corrispondenza.
+    </p>
+  )}
+</div>
 
           <div className="flex flex-wrap gap-3">
             <button
@@ -1659,6 +1843,9 @@ const [editingIconPositionY, setEditingIconPositionY] = useState<
   const [editingBadgeText, setEditingBadgeText] = useState("");
   const [editingTextColor, setEditingTextColor] = useState("");
   const [editingHoverEffect, setEditingHoverEffect] = useState("none");
+  const [editingTargetCountries, setEditingTargetCountries] = useState<string[]>([]);
+const [editingTargetDevices, setEditingTargetDevices] = useState<string[]>([]);
+const [editingTargetSources, setEditingTargetSources] = useState<string[]>([]);
 const [profileImageWidth, setProfileImageWidth] = useState<number>(120);
 
 const avatarPreviewSize = profileImageWidth ?? 120;
@@ -1843,7 +2030,7 @@ if (profileUsername) {
     const { data, error } = await supabase
       .from("links")
       .select(
-  "id, profile_id, title, url, position, starts_at, ends_at, ab_group, is_variant, variant_of, icon_url, icon_object_x, icon_object_y, icon_size, icon_position_x, icon_position_y, display_type, image_url, image_height, background_color, badge_text, text_color, hover_effect"
+  "id, profile_id, title, url, target_countries, target_devices, target_sources, position, starts_at, ends_at, ab_group, is_variant, variant_of, icon_url, icon_object_x, icon_object_y, icon_size, icon_position_x, icon_position_y, display_type, image_url, image_height, background_color, badge_text, text_color, hover_effect"
 
 
 )
@@ -1855,7 +2042,12 @@ if (profileUsername) {
       return [] as BioLink[];
     }
 
-    const loadedLinks = (data ?? []) as BioLink[];
+const loadedLinks = (data ?? []).map((link) => ({
+  ...link,
+  target_countries: link.target_countries ?? [],
+  target_devices: link.target_devices ?? [],
+  target_sources: link.target_sources ?? [],
+})) as BioLink[];
     setLinks(loadedLinks);
 
     return loadedLinks;
@@ -2987,7 +3179,7 @@ if (newLinkDisplayType === "image" && !newLinkImageFile) {
         icon_url: cleanIconUrl,
       })
       .select(
-        "id, profile_id, title, url, position, starts_at, ends_at, ab_group, is_variant, variant_of, icon_url, icon_object_x, icon_object_y, icon_size, icon_position_x, icon_position_y, display_type, image_url, image_height, background_color, badge_text, text_color, hover_effect "
+        "id, profile_id, title, url, target_countries, target_devices, target_sources, position, starts_at, ends_at, ab_group, is_variant, variant_of, icon_url, icon_object_x, icon_object_y, icon_size, icon_position_x, icon_position_y, display_type, image_url, image_height, background_color, badge_text, text_color, hover_effect "
 
 
       )
@@ -3036,7 +3228,7 @@ if (newLinkIconFile) {
       .update({ icon_url: iconUrlWithCacheBuster })
       .eq("id", linkWithIcon.id)
       .select(
-        "id, profile_id, title, url, position, starts_at, ends_at, ab_group, is_variant, variant_of, icon_url, icon_object_x, icon_size, icon_position_x, icon_position_y, display_type, image_url, image_height, background_color, badge_text, text_color, hover_effect "
+        "id, profile_id, title, url, target_countries, target_devices, target_sources, position, starts_at, ends_at, ab_group, is_variant, variant_of, icon_url, icon_object_x, icon_size, icon_position_x, icon_position_y, display_type, image_url, image_height, background_color, badge_text, text_color, hover_effect "
 
 
       )
@@ -3086,7 +3278,7 @@ if (newLinkDisplayType === "image" && newLinkImageFile) {
       .update({ image_url: imageUrlWithCacheBuster })
       .eq("id", linkWithIcon.id)
       .select(
-        "id, profile_id, title, url, position, starts_at, ends_at, ab_group, is_variant, variant_of, icon_url, icon_object_x, icon_size, icon_position_x, icon_position_y, display_type, image_url, image_height, background_color, badge_text, text_color, hover_effect "
+        "id, profile_id, title, url, target_countries, target_devices, target_sources, position, starts_at, ends_at, ab_group, is_variant, variant_of, icon_url, icon_object_x, icon_size, icon_position_x, icon_position_y, display_type, image_url, image_height, background_color, badge_text, text_color, hover_effect "
 
       )
       .single();
@@ -3202,6 +3394,10 @@ function startEditingLink(link: BioLink) {
   setEditingTextColor(link.text_color ?? "");
   setEditingHoverEffect(link.hover_effect ?? "none");
 
+  setEditingTargetCountries(link.target_countries ?? []);
+setEditingTargetDevices(link.target_devices ?? []);
+setEditingTargetSources(link.target_sources ?? []);
+
   setEditingScheduleEnabled(Boolean(link.starts_at || link.ends_at));
   setEditingStartsAt(fromIsoToDateTimeLocal(link.starts_at));
   setEditingEndsAt(fromIsoToDateTimeLocal(link.ends_at));
@@ -3226,6 +3422,9 @@ seteditingIconObjectY(50);
     setEditingScheduleEnabled(false);
     setEditingStartsAt("");
     setEditingEndsAt("");
+    setEditingTargetCountries([]);
+setEditingTargetDevices([]);
+setEditingTargetSources([]);
   }
 
 function handleNewLinkIconChange(event: ChangeEvent<HTMLInputElement>) {
@@ -3299,84 +3498,96 @@ function handleNewLinkImageChange(event: ChangeEvent<HTMLInputElement>) {
     }
   }
 
-  async function handleSaveLinkEdit(linkId: string) {
-    const cleanTitle = editingTitle.trim();
-    const cleanUrl = editingUrl.trim();
-    const cleanIconUrl = editingIconUrl.trim() || null;
+ async function handleSaveLinkEdit(linkId: string) {
+  const cleanTitle = editingTitle.trim();
+  const cleanUrl = editingUrl.trim();
+  const cleanIconUrl = editingIconUrl.trim() || null;
 
-    if (!cleanTitle) {
-      setMessage("Inserisci il titolo del link.");
-      return;
-    }
-
-    if (!isValidHttpUrl(cleanUrl)) {
-      setMessage(
-        "Inserisci un URL valido che inizi con https:// oppure http://"
-      );
-      return;
-    }
-
-    if (
-      editingScheduleEnabled &&
-      !isValidSchedule(editingStartsAt, editingEndsAt)
-    ) {
-      setMessage(
-        "La data di fine deve essere successiva alla data di inizio."
-      );
-      return;
-    }
-
-    setSavingEdit(true);
-    setMessage("");
-
-    const { data: updatedLink, error } = await supabase
-      .from("links")
-      .update({
-  title: cleanTitle,
-  url: cleanUrl,
-  icon_url: cleanIconUrl,
-  icon_object_x: editingIconObjectX,
-icon_object_y: editingIconObjectY,
-  icon_size: editingIconSize,
-  icon_position_x: editingIconPositionX,
-  icon_position_y: editingIconPositionY,
-  background_color: editingBackgroundColor.trim() || null,
-  image_height:
-  editingImageHeight >= 120 && editingImageHeight <= 520
-    ? editingImageHeight
-    : 220,
-  badge_text: editingBadgeText.trim().slice(0, 24) || null,
-  text_color: editingTextColor.trim() || null,
-  hover_effect: editingHoverEffect,
-  starts_at: editingScheduleEnabled
-    ? toIsoOrNull(editingStartsAt)
-    : null,
-  ends_at: editingScheduleEnabled ? toIsoOrNull(editingEndsAt) : null,
-})
-      .eq("id", linkId)
-      .select(
-        "id, profile_id, title, url, position, starts_at, ends_at, ab_group, is_variant, variant_of, icon_url, icon_object_x, icon_size, icon_position_x, icon_position_y, display_type, image_url, image_height, background_color, badge_text, text_color, hover_effect "
-
-
-      )
-      .single();
-
-    setSavingEdit(false);
-
-    if (error) {
-      setMessage(`Non Ã¨ stato possibile modificare il link: ${error.message}`);
-      return;
-    }
-
-    setLinks((currentLinks) =>
-      currentLinks.map((link) =>
-        link.id === linkId ? (updatedLink as BioLink) : link
-      )
-    );
-
-    cancelEditingLink();
-    setMessage("Link aggiornato con successo.");
+  if (!cleanTitle) {
+    setMessage("Inserisci il titolo del link.");
+    return;
   }
+
+  if (!isValidHttpUrl(cleanUrl)) {
+    setMessage(
+      "Inserisci un URL valido che inizi con https:// oppure http://",
+    );
+    return;
+  }
+
+  if (
+    editingScheduleEnabled &&
+    !isValidSchedule(editingStartsAt, editingEndsAt)
+  ) {
+    setMessage(
+      "La data di fine deve essere successiva alla data di inizio.",
+    );
+    return;
+  }
+
+  setSavingEdit(true);
+  setMessage("");
+
+  const { data: updatedLink, error } = await supabase
+    .from("links")
+    .update({
+      title: cleanTitle,
+      url: cleanUrl,
+      icon_url: cleanIconUrl,
+      icon_object_x: editingIconObjectX,
+      icon_object_y: editingIconObjectY,
+      icon_size: editingIconSize,
+      icon_position_x: editingIconPositionX,
+      icon_position_y: editingIconPositionY,
+      background_color: editingBackgroundColor.trim() || null,
+      image_height:
+        editingImageHeight >= 120 && editingImageHeight <= 520
+          ? editingImageHeight
+          : 220,
+      badge_text: editingBadgeText.trim().slice(0, 24) || null,
+      text_color: editingTextColor.trim() || null,
+      hover_effect: editingHoverEffect,
+
+      // Le regole vengono salvate soltanto per account Premium/PRO.
+      // Per account Free vengono sempre azzerate.
+      target_countries:
+        plan === "premium" ? editingTargetCountries : [],
+      target_devices:
+        plan === "premium" ? editingTargetDevices : [],
+      target_sources:
+        plan === "premium" ? editingTargetSources : [],
+
+      starts_at: editingScheduleEnabled
+        ? toIsoOrNull(editingStartsAt)
+        : null,
+      ends_at: editingScheduleEnabled
+        ? toIsoOrNull(editingEndsAt)
+        : null,
+    })
+    .eq("id", linkId)
+    .select(
+      "id, profile_id, title, url, target_countries, target_devices, target_sources, position, starts_at, ends_at, ab_group, is_variant, variant_of, icon_url, icon_object_x, icon_object_y, icon_size, icon_position_x, icon_position_y, display_type, image_url, image_height, background_color, badge_text, text_color, hover_effect",
+    )
+    .single();
+
+  setSavingEdit(false);
+
+  if (error) {
+    setMessage(
+      `Non è stato possibile modificare il link: ${error.message}`,
+    );
+    return;
+  }
+
+  setLinks((currentLinks) =>
+    currentLinks.map((link) =>
+      link.id === linkId ? (updatedLink as BioLink) : link,
+    ),
+  );
+
+  cancelEditingLink();
+  setMessage("Link aggiornato con successo.");
+}
 
   function openAddVariantModal(link: BioLink) {
     setAddingVariantLinkId(link.id);
@@ -7873,6 +8084,17 @@ value={displayName ?? ""}
                   editingBadgeText={editingBadgeText}
                   editingTextColor={editingTextColor}
                   editingHoverEffect={editingHoverEffect}
+                  editingTargetCountries={editingTargetCountries}
+editingTargetDevices={editingTargetDevices}
+editingTargetSources={editingTargetSources}
+onTargetCountriesChange={setEditingTargetCountries}
+onTargetDevicesChange={setEditingTargetDevices}
+onTargetSourcesChange={setEditingTargetSources}
+isPro={plan === "premium"}
+onRequirePro={() => {
+  setLockedFeature("Targeting avanzato");
+  setProModalOpen(true);
+}}
                   editingScheduleEnabled={editingScheduleEnabled}
                   editingStartsAt={editingStartsAt}
                   editingEndsAt={editingEndsAt}

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import ProfileViewTracker from "../components/ProfileViewTracker";
 import TrackedPublicLink from "../components/TrackedPublicLink";
+import TargetedLinks from "../components/TargetedLinks";
 import ProductCheckoutModal from "../components/ProductCheckoutModal";
 import SocialIcons, {
   SocialLink,
@@ -46,6 +47,9 @@ type BioLink = {
   id: string;
   title: string;
   url: string;
+    target_countries: string[];
+  target_devices: string[];
+  target_sources: string[];
   position: number;
   starts_at: string | null;
   ends_at: string | null;
@@ -201,7 +205,8 @@ console.log("publicProfile.bg_color:", publicProfile.bg_color);
     supabase
       .from("links")
       .select(
-        "id, title, url, position, starts_at, ends_at, ab_group, is_variant, variant_of, icon_url, icon_size, icon_object_x, icon_object_y, background_color, badge_text, text_color, hover_effect, display_type, image_url, image_height"
+"id, title, url, target_countries, target_devices, target_sources, position, starts_at, ends_at, ab_group, is_variant, variant_of, icon_url, icon_size, icon_object_x, icon_object_y, background_color, badge_text, text_color, hover_effect, display_type, image_url, image_height"
+
       )
       .eq("profile_id", publicProfile.id)
       .order("position", { ascending: true }),
@@ -239,7 +244,12 @@ console.log("publicProfile.bg_color:", publicProfile.bg_color);
     );
   }
 
-  const publicLinks = (linksResult.data ?? []) as BioLink[];
+  const publicLinks = (linksResult.data ?? []).map((link) => ({
+  ...link,
+  target_countries: link.target_countries ?? [],
+  target_devices: link.target_devices ?? [],
+  target_sources: link.target_sources ?? [],
+})) as BioLink[];
   const publicProducts = (productsResult.data ?? []) as Product[];
   const publicSocialLinks = (
     socialLinksResult.data ?? []
@@ -673,91 +683,11 @@ src={publicProfile.banner_image_url || publicProfile.avatar_url || ""}
         {hasContent && (
           <section className="mt-10 w-full space-y-10">
             {linksToShow.length > 0 && (
-              <div>
-                <h2 className="mb-4 text-center text-sm font-bold uppercase tracking-[0.25em] text-white/50">
-                  Link
-                </h2>
-
-                <div className="space-y-3">
-                  {linksToShow.map((link) => {
-                    const baseClasses = getButtonClasses(
-                      publicProfile.button_style ?? "solid"
-                    );
-
-                    return link.display_type === "image" && link.image_url ? (
-                      <TrackedPublicLink
-                        key={link.id}
-                        linkId={link.id}
-                        href={link.url}
-                        hoverEffect={link.hover_effect || "none"}
-                        ariaLabel={link.title || "Apri link"}
-                        className="relative block w-full overflow-hidden rounded-2xl border border-white/10 transition hover:scale-[1.01] hover:border-[#00d084]"
-                        style={{
-                          background: link.background_color || "#0c0d12",
-                        }}
-                      >
-                        <img
-                          src={link.image_url}
-                          alt={link.title || ""}
-                          className="block w-full object-cover object-center"
-                          style={{
-                            height: `${link.image_height ?? 220}px`,
-                          }}
-                        />
-                      </TrackedPublicLink>
-                    ) : (
-                      <TrackedPublicLink
-                        key={link.id}
-                        linkId={link.id}
-                        href={link.url}
-                        hoverEffect={link.hover_effect || "none"}
-                        className={`group relative flex w-full items-center justify-center rounded-xl px-4 py-4 font-black transition ${baseClasses}`}
-                        style={
-                          link.background_color
-                            ? { background: link.background_color }
-                            : undefined
-                        }
-                      >
-                        {link.icon_url && (
-                          <span
-                            className="absolute left-3 top-1/2 flex -translate-y-1/2 items-center justify-center overflow-hidden rounded-full border border-black/10 shadow-[0_2px_8px_rgba(0,0,0,0.16)]"
-                            style={{
-                              width: "36px",
-                              height: "36px",
-                              backgroundColor:
-                                link.background_color || "rgba(255,255,255,0.15)",
-                            }}
-                          >
-                            <img
-                              src={link.icon_url}
-                              alt=""
-                              className="h-full w-full"
-                              style={{
-                                width: `${link.icon_size ?? 24}px`,
-                                height: `${link.icon_size ?? 24}px`,
-                                objectFit: "cover",
-                                objectPosition: `${link.icon_object_x ?? 50}% ${link.icon_object_y ?? 50}%`,
-                              }}
-                            />
-                          </span>
-                        )}
-
-                        <span
-                          className="relative z-10 px-12 text-center"
-                          style={
-                            link.text_color
-                              ? { color: link.text_color }
-                              : undefined
-                          }
-                        >
-                          {link.title}
-                        </span>
-                      </TrackedPublicLink>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+  <TargetedLinks
+    links={linksToShow}
+    buttonStyle={publicProfile.button_style ?? "solid"}
+  />
+)}
 
             {publicProducts.length > 0 && (
               <div>
