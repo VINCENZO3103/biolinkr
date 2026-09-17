@@ -1077,6 +1077,69 @@ function SortableLinkItem({
 
             <p className="mt-1 truncate text-sm text-white/45">{link.url}</p>
 
+            {(link.target_countries?.length > 0 ||
+  link.target_devices?.length > 0 ||
+  link.target_sources?.length > 0) && (
+  <div className="mt-2 flex flex-wrap gap-1.5">
+    {link.target_countries?.map((country) => {
+  const code = country.toUpperCase();
+
+  return (
+    <span
+      key={`country-${country}`}
+      className="inline-flex items-center gap-1.5 rounded-md border border-[#00d084]/25 bg-[#00d084]/10 px-2 py-1 text-[10px] font-bold text-[#5cf0bd]"
+    >
+      <img
+  src={TARGET_COUNTRY_FLAGS[code] ?? "https://flagcdn.com/w40/xx.png"}
+  alt={TARGET_COUNTRY_NAMES[code] ?? code}
+  className="h-4 w-auto rounded-sm"
+/>
+
+      <span>
+        {TARGET_COUNTRY_NAMES[code] ?? country.toUpperCase()}
+      </span>
+    </span>
+  );
+})}
+
+    {link.target_devices?.map((device) => (
+      <span
+        key={`device-${device}`}
+        className="rounded-md border border-white/15 bg-white/5 px-2 py-1 text-[10px] font-bold text-white/65"
+      >
+        {device === "mobile"
+          ? "📱 Mobile"
+          : device === "desktop"
+            ? "🖥️ Desktop"
+            : device === "tablet"
+              ? "📲 Tablet"
+              : device}
+      </span>
+    ))}
+
+    {link.target_sources?.map((source) => (
+      <span
+        key={`source-${source}`}
+        className="rounded-md border border-[#9d7bff]/30 bg-[#9d7bff]/10 px-2 py-1 text-[10px] font-bold text-[#d3b8ff]"
+      >
+        {source === "instagram"
+          ? "Instagram"
+          : source === "tiktok"
+            ? "TikTok"
+            : source === "youtube"
+              ? "YouTube"
+              : source === "facebook"
+                ? "Facebook"
+                : source === "google"
+                  ? "Google"
+                  : source === "other"
+                    ? "Diretto / Altro"
+                    : source}
+      </span>
+    ))}
+  </div>
+)}
+
             <p className="mt-2 text-xs text-white/45">{status.detail}</p>
 
             {hasVariants && (
@@ -1602,6 +1665,28 @@ function SortableSocialPreviewIcon({
     </div>
   );
 }
+
+const TARGET_COUNTRY_NAMES: Record<string, string> = {
+  IT: "Italia",
+  MT: "Malta",
+  US: "Stati Uniti",
+  GB: "Regno Unito",
+  DE: "Germania",
+  FR: "Francia",
+  ES: "Spagna",
+};
+
+const TARGET_COUNTRY_FLAGS: Record<string, string> = {
+  IT: "https://flagcdn.com/w40/it.png",
+  MT: "https://flagcdn.com/w40/mt.png",
+  US: "https://flagcdn.com/w40/us.png",
+  GB: "https://flagcdn.com/w40/gb.png",
+  DE: "https://flagcdn.com/w40/de.png",
+  FR: "https://flagcdn.com/w40/fr.png",
+  ES: "https://flagcdn.com/w40/es.png",
+};
+
+const UNKNOWN_FLAG_URL = "https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/1f30d.png";
 
 function flagFromCode(code: string | undefined): string {
   if (!code || code === "Unknown") return "🌍";
@@ -4396,78 +4481,54 @@ const previewProducts = products.map((p) => ({
 ) : (
   <div className="space-y-6">
     {/* Paesi */}
-    <section>
-      <h3 className="mb-3 text-lg font-semibold">
-        Paesi principali
-      </h3>
+<section>
+  <h3 className="mb-3 text-lg font-semibold">
+    Paesi principali
+  </h3>
 
-      {countriesByVisits.length === 0 ? (
-        <p className="text-sm text-white/50">
-          Nessun dato geografico disponibile.
-        </p>
-      ) : (
-        <div className="grid grid-cols-2 gap-3">
-          {countriesByVisits.slice(0, 6).map((country) => {
-            const code = country.name ?? "Unknown";
+  {countriesByVisits.length === 0 ? (
+    <p className="text-sm text-white/50">
+      Nessun dato geografico disponibile.
+    </p>
+  ) : (
+    <div className="grid grid-cols-2 gap-3">
+      {countriesByVisits.slice(0, 6).map((country) => {
+        const code = country.name ?? "Unknown";
+        const isUnknown = code === "Unknown";
+        const displayCode = isUnknown ? "XX" : code.toUpperCase();
+        const flagUrl = isUnknown
+          ? UNKNOWN_FLAG_URL
+          : `https://flagcdn.com/w40/${displayCode.toLowerCase()}.png`;
+        const displayName = isUnknown
+          ? "Sconosciuto"
+          : TARGET_COUNTRY_NAMES[displayCode] ?? displayCode;
 
-            return (
-              <div
-                key={code}
-                className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-xl">
-                    {flagFromCode(code)}
-                  </span>
+        return (
+          <div
+            key={code}
+            className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3"
+          >
+            <div className="flex items-center gap-2">
+              <img
+                src={flagUrl}
+                alt={displayName}
+                className="h-6 w-auto rounded-sm"
+              />
 
-                  <span className="font-medium">
-                    {code === "Unknown"
-                      ? "Sconosciuto"
-                      : code.toUpperCase()}
-                  </span>
-                </div>
-
-                <span className="text-sm text-white/60">
-                  {country.value} visite
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </section>
-
-    {/* Dispositivi */}
-    <section>
-      <h3 className="mb-3 text-lg font-semibold">
-        Dispositivi
-      </h3>
-
-      {devicesByVisits.length === 0 ? (
-        <p className="text-sm text-white/50">
-          Nessun dato sui dispositivi disponibile.
-        </p>
-      ) : (
-        <div className="grid grid-cols-3 gap-3">
-          {devicesByVisits.map((device) => (
-            <div
-              key={device.name}
-              className="rounded-xl border border-white/10 bg-white/5 p-3 text-center"
-            >
-              <div className="text-sm capitalize text-white/60">
-                {device.name === "Unknown"
-                  ? "Sconosciuto"
-                  : device.name}
-              </div>
-
-              <div className="mt-1 text-lg font-semibold">
-                {device.value}
-              </div>
+              <span className="font-medium">
+                {displayName}
+              </span>
             </div>
-          ))}
-        </div>
-      )}
-    </section>
+
+            <span className="text-sm text-white/60">
+              {country.value} visite
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  )}
+</section>
 
     {/* Sorgenti */}
     <section>
