@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 
 type ProfileViewTrackerProps = {
   profileId: string;
+  username: string;
 };
 
 function readUtmValue(value: string | null) {
@@ -19,12 +20,20 @@ function readUtmValue(value: string | null) {
 
 export default function ProfileViewTracker({
   profileId,
+  username,
 }: ProfileViewTrackerProps) {
   const searchParams = useSearchParams();
   const hasTrackedView = useRef(false);
 
   useEffect(() => {
-    if (!profileId || hasTrackedView.current) {
+    console.log("ProfileViewTracker: profileId=", profileId, "username=", username);
+
+    if (!profileId || !username || hasTrackedView.current) {
+      console.log("ProfileViewTracker: salto la chiamata", {
+        profileId,
+        username,
+        hasTrackedView: hasTrackedView.current,
+      });
       return;
     }
 
@@ -32,11 +41,14 @@ export default function ProfileViewTracker({
 
     const payload = JSON.stringify({
       profileId,
+      username,
       source: readUtmValue(searchParams.get("utm_source")),
       medium: readUtmValue(searchParams.get("utm_medium")),
       campaign: readUtmValue(searchParams.get("utm_campaign")),
       content: readUtmValue(searchParams.get("utm_content")),
     });
+
+    console.log("ProfileViewTracker: invio payload", payload);
 
     void fetch("/api/track-view", {
       method: "POST",
@@ -46,7 +58,7 @@ export default function ProfileViewTracker({
       body: payload,
       keepalive: true,
     });
-  }, [profileId, searchParams]);
+  }, [profileId, username, searchParams]);
 
   return null;
 }

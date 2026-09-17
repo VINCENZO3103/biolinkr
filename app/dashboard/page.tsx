@@ -1419,6 +1419,20 @@ function SortableSocialPreviewIcon({
   );
 }
 
+function flagFromCode(code: string) {
+  const map: Record<string, string> = {
+    IT: "🇮🇹",
+    US: "🇺🇸",
+    GB: "🇬🇧",
+    FR: "🇫🇷",
+    DE: "🇩🇪",
+    ES: "🇪🇸",
+    BR: "🇧🇷",
+    // aggiungi quelli che ti servono
+  };
+  return map[code.toUpperCase()] ?? "🌍";
+}
+
 export default function DashboardPage() {
   const router = useRouter();
 
@@ -1593,12 +1607,27 @@ const [newLinkImagePreview, setNewLinkImagePreview] = useState("");
   const [todaySocialClicks, setTodaySocialClicks] = useState(0);
   const [weekSocialClicks, setWeekSocialClicks] = useState(0);
   const [socialClicksByPlatform, setSocialClicksByPlatform] = useState<
+  
   Record<string, number>
   >({});
 
   const [totalViews, setTotalViews] = useState(0);
   const [todayViews, setTodayViews] = useState(0);
   const [weekViews, setWeekViews] = useState(0);
+
+  const [countriesByVisits, setCountriesByVisits] = useState<
+  Array<{ country_code: string; visits: number }>
+>([]);
+
+const [devicesByVisits, setDevicesByVisits] = useState<
+  Array<{ device_type: string; visits: number }>
+>([]);
+
+const [sourcesByVisits, setSourcesByVisits] = useState<
+  Array<{ referrer: string; visits: number }>
+>([]);
+
+const [geoAnalyticsLoading, setGeoAnalyticsLoading] = useState(false);
 
   const [clicksByLink, setClicksByLink] = useState<Record<string, number>>(
     {}
@@ -1782,15 +1811,19 @@ setProfileLayout(
   );
 
   const [savedLinks, savedProducts, savedSocials] = await Promise.all([
-    loadLinks(user.id),
-    loadProducts(user.id),
-    loadSocialLinks(user.id),
-  ]);
+  loadLinks(user.id),
+  loadProducts(user.id),
+  loadSocialLinks(user.id),
+]);
 
-  setSocialLinks(savedSocials);
+setSocialLinks(savedSocials);
 
-  await loadAnalytics(user.id, savedLinks);
-  await loadOrders(user.id, savedProducts);
+await loadAnalytics(user.id, savedLinks);
+await loadOrders(user.id, savedProducts);
+
+if (username) {
+  await loadGeoAnalytics(username);
+}
 }
 
     setLoading(false);
@@ -2037,6 +2070,34 @@ setProfileLayout(
   setSocialClicksByPlatform(socialTotals);
 
   setTrafficSources(makeTrafficRows(sourceCounts, views.length));
+}
+
+async function loadGeoAnalytics(username: string) {
+  setGeoAnalyticsLoading(true);
+  try {
+    const url = `/api/profile/${encodeURIComponent(username)}/analytics`;
+    console.log("Chiamata analytics geo:", url);
+
+    const res = await fetch(url);
+
+    console.log("Status response:", res.status);
+
+    if (!res.ok) {
+      console.error("Errore nel caricamento analytics geo", res.status);
+      return;
+    }
+
+    const data = await res.json();
+    console.log("Dati analytics geo ricevuti:", data);
+
+    setCountriesByVisits(data.countries ?? []);
+    setDevicesByVisits(data.devices ?? []);
+    setSourcesByVisits(data.sources ?? []);
+  } catch (err) {
+    console.error("Errore nel caricamento analytics geo", err);
+  } finally {
+    setGeoAnalyticsLoading(false);
+  }
 }
 
   function isValidHttpUrl(value: string) {
@@ -4094,6 +4155,75 @@ const previewProducts = products.map((p) => ({
         </div>
       )}
     </article>
+
+{geoAnalyticsLoading ? (
+  <p className="text-sm text-white/50">
+    Caricamento paesi, dispositivi e sorgenti…
+  </p>
+) : (
+  <>
+    {/* Paesi */}
+    <section>
+      <h3 className="text-lg font-semibold mb-3">Paesi principali</h3>
+      <div className="grid grid-cols-2 gap-3">
+        {countriesByVisits.slice(0, 6).map((c) => (
+          <div
+            key={c.country_code}
+            className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-xl">
+                {flagFromCode(c.country_code)}
+              </span>
+              <span className="font-medium">
+                {c.country_code.toUpperCase()}
+              </span>
+            </div>
+            <div className="text-sm text-white/60">
+              {c.visits} visite
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    {/* Dispositivi */}
+    <section className="mt-6">
+      <h3 className="text-lg font-semibold mb-3">Dispositivi</h3>
+      <div className="grid grid-cols-3 gap-3">
+        {devicesByVisits.map((d) => (
+          <div
+            key={d.device_type}
+            className="rounded-xl border border-white/10 bg-white/5 p-3 text-center"
+          >
+            <div className="text-sm text-white/60 capitalize">
+              {d.device_type}
+            </div>
+            <div className="text-lg font-semibold">{d.visits}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    {/* Sorgenti */}
+    <section className="mt-6">
+      <h3 className="text-lg font-semibold mb-3">Sorgenti</h3>
+      <div className="grid grid-cols-2 gap-3">
+        {sourcesByVisits.map((s) => (
+          <div
+            key={s.referrer}
+            className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-3"
+          >
+            <span className="font-medium capitalize">{s.referrer}</span>
+            <span className="text-sm text-white/60">
+              {s.visits} visite
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
+  </>
+)}
 
     {/* CLICK PER LINK (quello che avevi già) */}
     {links.length > 0 && (

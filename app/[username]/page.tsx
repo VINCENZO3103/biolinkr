@@ -157,6 +157,8 @@ export default async function PublicProfilePage({
   params,
 }: PublicProfilePageProps) {
   const { username } = await params;
+  const cleanUsername = String(username ?? "");
+
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -305,7 +307,10 @@ console.log("publicProfile.bg_color:", publicProfile.bg_color);
 
     {/* Contenuto sopra lo sfondo */}
     <div className="relative z-10">
-      <ProfileViewTracker profileId={publicProfile.id} />
+<ProfileViewTracker
+  profileId={publicProfile.id}
+  username={cleanUsername}
+/>
 
 <div className="flex w-full flex-col items-center">
         <Link
