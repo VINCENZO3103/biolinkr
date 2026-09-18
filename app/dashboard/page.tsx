@@ -155,6 +155,7 @@ type LinkStatus = {
 type SortableLinkItemProps = {
   link: BioLink;
   variants: BioLink[];
+  variantsCount: number;
   isEditing: boolean;
   editingTitle: string;
   editingUrl: string;
@@ -339,6 +340,7 @@ function isLinkActive(link: BioLink) {
 function SortableLinkItem({
   link,
   variants,
+    variantsCount,
   isEditing,
   editingTitle,
   editingUrl,
@@ -412,6 +414,7 @@ function SortableLinkItem({
 
   const status = getLinkStatus(link);
   const hasVariants = variants.length > 0;
+  
 
   return (
     <div
@@ -1229,12 +1232,7 @@ function SortableLinkItem({
 
             <p className="mt-2 text-xs text-white/45">{status.detail}</p>
 
-            {hasVariants && (
-              <p className="mt-2 text-xs text-[#9d7bff]/80">
-                {variants.length} variante{variants.length > 1 ? "i" : ""} attiva
-                {variants.length > 1 ? "i" : ""}
-              </p>
-            )}
+            
           </div>
 
           <div className="flex w-full min-w-0 flex-wrap items-center justify-start gap-2 sm:w-auto sm:justify-end">
@@ -3242,6 +3240,34 @@ async function handleSaveProfile(event: FormEvent<HTMLFormElement>) {
   }
 }
 
+async function openCustomerPortal() {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  if (!session?.access_token) {
+    setMessage("Devi essere loggato.");
+    return;
+  }
+
+  const res = await fetch("/api/billing/portal", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+    },
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    setMessage(data.error ?? "Errore nell'apertura della portal.");
+    return;
+  }
+
+  // Redirect alla Customer Portal di Stripe
+  window.location.href = data.url;
+}
+
 async function handleRedeemCode() {
   if (!redeemCode.trim()) {
     setRedeemMessage("Inserisci un codice.");
@@ -3800,6 +3826,18 @@ function handleNewLinkImageChange(event: ChangeEvent<HTMLInputElement>) {
     return;
   }
 
+  // Conta TUTTE le varianti dell'account Free
+const totalVariantsCount = links.filter(
+  (link) => link.is_variant === true
+).length;
+
+if (plan !== "premium" && totalVariantsCount >= 1) {
+  setVariantMessage("Il piano Free consente una sola variante in totale.");
+  setLockedFeature("Varianti illimitate");
+  setProModalOpen(true);
+  return;
+}
+
   const cleanTitle = variantTitle.trim();
   const cleanUrl = variantUrl.trim();
 
@@ -4282,6 +4320,9 @@ function handleNewLinkImageChange(event: ChangeEvent<HTMLInputElement>) {
   }
 
   const abGroups = getAbGroups();
+
+  const totalVariantsCount = links.filter((l) => l.is_variant === true).length;
+
 
   function formatPrice(cents: number, currency: string) {
     const locale =
@@ -8537,18 +8578,30 @@ value={displayName ?? ""}
     {/* I tuoi link – unico blocco, senza titolo duplicato */}
     <section className="mt-12">
       <section className="rounded-3xl border border-white/10 bg-[#17181e] p-8 sm:p-10">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-black">I tuoi link</h2>
-            <p className="mt-2 text-sm text-white/50">
-              Trascina l'icona ⋮⋮ per cambiare l'ordine dei pulsanti.
-            </p>
-          </div>
+  <div className="flex items-center justify-between gap-4">
+    <div>
+      <h2 className="text-2xl font-black">I tuoi link</h2>
+      <p className="mt-2 text-sm text-white/50">
+        Trascina l'icona ⋮⋮ per cambiare l'ordine dei pulsanti.
+      </p>
+    </div>
 
-          <span className="rounded-full bg-white/5 px-3 py-1 text-sm text-white/55">
-            {links.length}
-          </span>
-        </div>
+    <div className="flex items-center gap-2">
+      <span className="rounded-full bg-white/5 px-3 py-1 text-sm text-white/55">
+        {links.length}
+      </span>
+
+      <span className="rounded-full bg-[#9d7bff]/15 px-3 py-1 text-sm font-bold text-[#d3b8ff]">
+        {plan === "premium"
+          ? `${totalVariantsCount} ${
+              totalVariantsCount === 1 ? "Variante" : "Varianti"
+            }`
+          : `${totalVariantsCount}/1 ${
+              totalVariantsCount === 1 ? "Variante" : "Varianti"
+            }`}
+      </span>
+    </div>
+  </div>
 
         {links.length === 0 ? (
           <p className="mt-6 text-white/55">
@@ -8569,11 +8622,13 @@ value={displayName ?? ""}
                 reordering ? "pointer-events-none opacity-70" : ""
               }`}
             >
+              
               {links.map((link) => (
                 <SortableLinkItem
                   key={link.id}
                   link={link}
                   variants={getVariantsForLink(link)}
+variantsCount={totalVariantsCount}
                   isEditing={editingLinkId === link.id}
                   editingTitle={editingTitle}
                   editingUrl={editingUrl}
@@ -8838,7 +8893,7 @@ onResetIconObjectPosition={() => {
       </div>
 
 {activeSection === "pro" && (
-<section className="mt-12 max-w-7xl mx-auto">
+  <section className="mt-12 max-w-7xl mx-auto">
     <div className="relative overflow-hidden rounded-[2rem] border border-[#40e0d0]/25 bg-[#0c0f0e] p-6 shadow-[0_24px_70px_rgba(0,0,0,0.3),0_0_42px_rgba(64,224,208,0.08)] sm:p-10">
       {/* Luci decorative */}
       <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-[#40e0d0]/10 blur-3xl" />
@@ -8898,24 +8953,146 @@ onResetIconObjectPosition={() => {
           </div>
 
           <div className="rounded-2xl border border-[#40e0d0]/20 bg-[#40e0d0]/[0.07] px-4 py-3 text-right">
-  <p className="text-lg font-black text-white">
-    {plan === "premium" || subscriptionStatus === "trialing"
-      ? "Pro attivo"
-      : "Gratuito"}
-  </p>
+            <p className="text-lg font-black text-white">
+              {plan === "premium" || subscriptionStatus === "trialing"
+                ? "Pro attivo"
+                : "Gratuito"}
+            </p>
 
-  {(plan === "premium" || subscriptionStatus === "trialing") &&
-    subscriptionEndDate && (
-      <p className="mt-1 text-xs text-white/55">
-        {subscriptionStatus === "trialing" ? "Prova gratuita fino al " : "Rinnovo il "}
-        {new Date(subscriptionEndDate).toLocaleDateString("it-IT", {
-          day: "2-digit",
-          month: "long",
-          year: "numeric",
-        })}
-      </p>
-    )}
-</div>
+            {(plan === "premium" || subscriptionStatus === "trialing") &&
+              subscriptionEndDate && (
+                <p className="mt-1 text-xs text-white/55">
+                  {subscriptionStatus === "trialing"
+                    ? "Prova gratuita fino al "
+                    : "Rinnovo il "}
+                  {new Date(subscriptionEndDate).toLocaleDateString("it-IT", {
+                    day: "2-digit",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </p>
+              )}
+          </div>
+        </div>
+
+        {/* Card Free vs Pro */}
+        <div className="mt-10 grid gap-6 md:grid-cols-2">
+          {/* CARD FREE */}
+          <article className="relative overflow-hidden rounded-2xl border border-white/10 bg-black/20 p-6">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-black text-white">Free</h3>
+              <span className="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white/45">
+                Attuale
+              </span>
+            </div>
+
+            <p className="mt-2 text-3xl font-black text-white">
+              €0
+              <span className="text-base font-bold text-white/50">/mese</span>
+            </p>
+
+            <p className="mt-3 text-sm text-white/60">
+              Tutto il necessario per una pagina bio pulita e funzionale.
+            </p>
+
+            <ul className="mt-5 space-y-3 text-sm text-white/70">
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-[#00d084]" />
+                Pagina bio con link illimitati
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-[#00d084]" />
+                Prova A/B Test (1 Variante) 
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-[#00d084]" />
+                Analytics essenziali (click, visite, CTR)
+              </li>
+            </ul>
+
+            {/* Tasto card Free */}
+            {plan === "premium" || subscriptionStatus === "trialing" ? (
+              <button
+                type="button"
+                disabled
+                className="mt-6 w-full cursor-not-allowed rounded-xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-black text-white/40"
+              >
+                Incluso con BioLinkr Pro
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled
+                className="mt-6 w-full cursor-not-allowed rounded-xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-black text-white/40"
+              >
+                Piano già attivo
+              </button>
+            )}
+          </article>
+
+          {/* CARD PRO */}
+          <article className="relative overflow-hidden rounded-2xl border border-[#40e0d0]/25 bg-[#0c0f0e] p-6 shadow-[0_24px_70px_rgba(0,0,0,0.3),0_0_42px_rgba(64,224,208,0.08)]">
+            <div className="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-[#40e0d0]/10 blur-3xl" />
+
+            <div className="relative">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-black text-[#78f5df]">Pro</h3>
+                <span className="rounded-full border border-[#40e0d0]/25 bg-[#40e0d0]/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[#a8fff0]">
+                  Premium
+                </span>
+              </div>
+
+              <p className="mt-2 text-3xl font-black text-white">
+                €4,99
+                <span className="text-base font-bold text-white/50">/mese</span>
+              </p>
+
+              <p className="mt-3 text-sm text-white/60">
+                Strumenti avanzati per ottimizzare click, crescita e conversioni.
+              </p>
+
+              <ul className="mt-5 space-y-3 text-sm text-white/70">
+                <li className="flex items-start gap-2">
+                  <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-[#00d084]" />
+                  A/B test sui link illimitato: confronta due versioni dello stesso link e scopri quale porta più click.
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-[#00d084]" />
+                  Targeting avanzato: mostra link diversi in base a paese, dispositivo e sorgente del visitatore.
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-[#00d084]" />
+                  Sfondi video per una pagina più coinvolgente.
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-[#00d084]" />
+                  Analytics avanzati: fonti di traffico e performance per link.
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-[#00d084]" />
+                  Layout profilo esclusivi
+                </li>
+              </ul>
+
+              {plan === "premium" || subscriptionStatus === "trialing" ? (
+                <a
+                  href="https://billing.stripe.com/p/login/4gMbJ4dai0ZWedZgrFeAg00"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-6 block w-full rounded-xl bg-[#00d084] px-5 py-3 text-center text-sm font-black text-[#07100d] transition hover:bg-[#19e49b]"
+                >
+                  Gestisci abbonamento
+                </a>
+              ) : (
+                <a
+                  href="/dashboard/upgrade"
+                  className="mt-6 block w-full rounded-xl bg-[#40e0d0] px-5 py-3 text-center text-sm font-black text-[#061110] shadow-[0_8px_24px_rgba(64,224,208,0.24)] transition hover:bg-[#7af7e4] hover:shadow-[0_10px_30px_rgba(64,224,208,0.34)]"
+                >
+                  Prova gratis 7 giorni
+                </a>
+              )}
+            </div>
+          </article>
         </div>
 
         {/* Riscatta codice PRO */}
@@ -8954,123 +9131,6 @@ onResetIconObjectPosition={() => {
               {redeemMessage}
             </p>
           )}
-        </div>
-
-        <div className="mt-10 grid gap-4 md:grid-cols-3">
-          <article className="rounded-2xl border border-[#40e0d0]/20 bg-black/20 p-5">
-            <div className="grid h-10 w-10 place-items-center rounded-xl border border-[#40e0d0]/25 bg-[#40e0d0]/10 text-[#8fffe9]">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-5 w-5"
-                aria-hidden="true"
-              >
-                <rect x="3" y="5" width="18" height="14" rx="3" />
-                <path d="m10 9 5 3-5 3V9Z" />
-              </svg>
-            </div>
-
-            <h3 className="mt-4 text-base font-black text-white">
-              Sfondi video
-            </h3>
-
-            <p className="mt-2 text-sm leading-6 text-white/55">
-              Aggiungi movimento, atmosfera e personalità alla tua pagina.
-            </p>
-          </article>
-
-          <article className="rounded-2xl border border-white/10 bg-black/20 p-5">
-            <div className="grid h-10 w-10 place-items-center rounded-xl border border-white/15 bg-white/[0.05] text-white/80">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-5 w-5"
-                aria-hidden="true"
-              >
-                <path d="M4 6h16" />
-                <path d="M4 12h10" />
-                <path d="M4 18h16" />
-                <path d="M17 10v4" />
-                <path d="M15 12h4" />
-              </svg>
-            </div>
-
-            <h3 className="mt-4 text-base font-black text-white">
-              Personalizzazione avanzata
-            </h3>
-
-            <p className="mt-2 text-sm leading-6 text-white/55">
-              Stili, layout e dettagli visivi più evoluti per il tuo brand.
-            </p>
-
-            <span className="mt-4 inline-flex rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white/45">
-              In arrivo
-            </span>
-          </article>
-
-          <article className="rounded-2xl border border-white/10 bg-black/20 p-5">
-            <div className="grid h-10 w-10 place-items-center rounded-xl border border-white/15 bg-white/[0.05] text-white/80">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-5 w-5"
-                aria-hidden="true"
-              >
-                <path d="M4 19V5" />
-                <path d="M4 19h16" />
-                <path d="m7 15 3-4 3 2 4-6" />
-              </svg>
-            </div>
-
-            <h3 className="mt-4 text-base font-black text-white">
-              Analytics avanzati
-            </h3>
-
-            <p className="mt-2 text-sm leading-6 text-white/55">
-              Scopri cosa funziona davvero e fai crescere il tuo pubblico.
-            </p>
-
-            <span className="mt-4 inline-flex rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white/45">
-              In arrivo
-            </span>
-          </article>
-        </div>
-
-        <div className="mt-8 flex flex-col gap-3 border-t border-white/10 pt-7 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="font-black text-white">
-              Pronto a rendere la tua pagina indimenticabile?
-            </p>
-
-            <p className="mt-1 text-sm text-white/50">
-              PRO sarà disponibile a breve: stiamo preparando tutto.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              setMessage("Le attivazioni PRO apriranno presto.");
-            }}
-            className="shrink-0 rounded-xl bg-[#40e0d0] px-5 py-3 text-sm font-black text-[#061110] shadow-[0_8px_24px_rgba(64,224,208,0.24)] transition hover:bg-[#7af7e4] hover:shadow-[0_10px_30px_rgba(64,224,208,0.34)]"
-          >
-            Voglio PRO
-          </button>
         </div>
       </div>
     </div>

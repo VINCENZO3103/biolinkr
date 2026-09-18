@@ -886,6 +886,8 @@ body {
   box-sizing: border-box;
 }
 
+
+
 @media (prefers-reduced-motion: reduce) {
   .biolinkr-ab-variants::before,
   .biolinkr-ab-vs,
@@ -893,3 +895,4 @@ body {
     animation: none !important;
   }
 }
+
