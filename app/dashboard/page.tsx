@@ -45,6 +45,8 @@ type Profile = {
   bio: string;
   avatar_url: string | null;
   avatar_width: number | null;
+avatar_background_color: string | null;
+avatar_border_enabled: boolean | null;
 avatar_height: number | null;
 avatar_position_x: number | null;
 avatar_position_y: number | null;
@@ -2021,6 +2023,11 @@ const [editingTargetDevices, setEditingTargetDevices] = useState<string[]>([]);
 const [editingTargetSources, setEditingTargetSources] = useState<string[]>([]);
 const [profileImageWidth, setProfileImageWidth] = useState<number>(120);
 
+const [avatarBackgroundColor, setAvatarBackgroundColor] =
+  useState("transparent");
+
+const [avatarBorderEnabled, setAvatarBorderEnabled] = useState(true);
+
 const avatarPreviewSize = profileImageWidth ?? 120;
 const [profileImagePositionX, setProfileImagePositionX] = useState(50);
 const avatarDragRef = useRef<HTMLDivElement | null>(null);
@@ -2097,7 +2104,7 @@ const [lockedFeature, setLockedFeature] = useState("Sfondi video");
     const { data: profile, error: profileError } = await supabase
   .from("profiles")
   .select(
-    "id, username, display_name, bio, avatar_url, avatar_width, avatar_height, avatar_position_x, avatar_position_y, bg_color, bg_image_url, banner_image_url, bg_video_url, button_style, social_position, display_name_color, username_color, bio_color, display_name_size, display_name_align, bio_size, plan, video_opacity, subscription_status, subscription_end_date, profile_layout"
+    "id, username, display_name, bio, avatar_url, avatar_width, avatar_height, avatar_position_x, avatar_position_y, avatar_background_color, avatar_border_enabled, bg_color, bg_image_url, banner_image_url, bg_video_url, button_style, social_position, display_name_color, username_color, bio_color, display_name_size, display_name_align, bio_size, plan, video_opacity, subscription_status, subscription_end_date, profile_layout"
   )
   .eq("id", user.id)
   .maybeSingle();
@@ -2143,6 +2150,13 @@ setProfileLayout(
   setDisplayName(savedProfile.display_name ?? "");
   setBio(savedProfile.bio ?? "");
   setAvatarUrl(savedProfile.avatar_url ?? "");
+  setAvatarBackgroundColor(
+  savedProfile.avatar_background_color ?? "transparent"
+);
+
+setAvatarBorderEnabled(
+  savedProfile.avatar_border_enabled ?? true
+);
   setProfileImageWidth(
     typeof savedProfile.avatar_width === "number"
       ? savedProfile.avatar_width
@@ -3158,7 +3172,9 @@ async function handleSaveProfile(event: FormEvent<HTMLFormElement>) {
         display_name: cleanDisplayName,
         bio: cleanBio,
         avatar_url: avatarUrl || null,
-        avatar_width: profileImageWidth,
+        avatar_width: Number(profileImageWidth) || 120,
+avatar_background_color: avatarBackgroundColor || "transparent",
+avatar_border_enabled: avatarBorderEnabled,
         avatar_height: profileImageWidth,
         avatar_position_x: profileImagePositionX,
         avatar_position_y: 50,
@@ -5360,6 +5376,8 @@ const previewProducts = products.map((p) => ({
                   bannerImageUrl={bannerImageUrl}
                   avatarWidth={profileImageWidth}
                   avatarPositionX={profileImagePositionX}
+                  avatarBackgroundColor={avatarBackgroundColor}
+avatarBorderEnabled={avatarBorderEnabled}
                   bgColor={bgColor ?? ""}
                   bgImageUrl={bgImageUrl ?? ""}
                   bgVideoUrl={bgVideoUrl}
@@ -6744,28 +6762,50 @@ const previewProducts = products.map((p) => ({
   onPointerMove={handleAvatarPointerMove}
   onPointerUp={handleAvatarPointerUp}
   onPointerCancel={handleAvatarPointerUp}
-  className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-[#17181e] touch-none select-none"
-  title={avatarUrl ? "Trascina a sinistra o destra per posizionare l’immagine" : undefined}
+  className="relative flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full touch-none select-none"
+  style={{
+    border: avatarBorderEnabled ? "1px solid rgba(255,255,255,0.15)" : "none",
+    backgroundColor:
+      avatarBackgroundColor === "transparent"
+        ? "transparent"
+        : avatarBackgroundColor,
+    cursor: avatarUrl ? "ew-resize" : "default",
+  }}
+  title={
+    avatarUrl
+      ? "Trascina orizzontalmente per cambiare l'inquadratura"
+      : undefined
+  }
 >
   {avatarUrl ? (
-    <img
-      src={avatarUrl}
-      alt="Anteprima immagine profilo"
-      draggable={false}
-      onDragStart={(e) => e.preventDefault()}
-      className="select-none object-cover"
+    <div
+      className="flex h-full w-full items-center justify-center overflow-hidden rounded-full"
       style={{
-        width: `${profileImageWidth ?? 120}px`,
-        height: `${profileImageWidth ?? 120}px`,
-        objectPosition: `${profileImagePositionX}% 50%`,
-        pointerEvents: "none",
-        userSelect: "none",
+        width: "80px",
+        height: "80px",
       }}
-    />
+    >
+      <img
+        src={avatarUrl}
+        alt="Anteprima immagine profilo"
+        draggable={false}
+        onDragStart={(event) => event.preventDefault()}
+        className="max-w-none select-none object-cover"
+        style={{
+          width: `${profileImageWidth ?? 120}px`,
+          height: `${profileImageWidth ?? 120}px`,
+          maxWidth: "none",
+          maxHeight: "none",
+          objectPosition: `${profileImagePositionX ?? 50}% 50%`,
+          pointerEvents: "none",
+          userSelect: "none",
+        }}
+      />
+    </div>
   ) : (
-    <span className="text-4xl font-black text-[#00d084]">
+    <div className="flex h-20 w-20 items-center justify-center bg-[#00d084] text-3xl font-black text-[#07100d]">
       {displayName ? displayName.charAt(0).toUpperCase() : "B"}
-    </span>
+    </div>
   )}
 </div>
 
@@ -6813,6 +6853,104 @@ const previewProducts = products.map((p) => ({
   className="mt-3 w-full cursor-pointer accent-[#00d084]"
 />
     </div>
+
+    <div className="space-y-4 rounded-2xl border border-white/10 bg-[#17181e] p-4">
+  <div className="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <p className="text-sm font-black text-white">
+        Sfondo contenitore foto
+      </p>
+      <p className="mt-1 text-xs leading-5 text-white/45">
+        Lascia trasparente oppure scegli un colore dietro l&apos;immagine
+        profilo.
+      </p>
+    </div>
+
+    <button
+      type="button"
+      onClick={() => setAvatarBackgroundColor("transparent")}
+      className={`rounded-xl border px-3 py-2 text-xs font-black transition ${
+        avatarBackgroundColor === "transparent"
+          ? "border-[#00d084] bg-[#00d084]/10 text-[#5cf0bd]"
+          : "border-white/15 text-white/60 hover:border-white/30 hover:text-white"
+      }`}
+    >
+      Trasparente
+    </button>
+  </div>
+
+  <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
+    {[
+      "#ffffff",
+      "#111318",
+      "#00d084",
+      "#0b766a",
+      "#8b5cf6",
+      "#ec4899",
+      "#f59e0b",
+      "#ef4444",
+    ].map((color) => (
+      <button
+        key={color}
+        type="button"
+        onClick={() => setAvatarBackgroundColor(color)}
+        aria-label={`Imposta sfondo avatar ${color}`}
+        className={`h-9 rounded-xl border transition active:scale-95 ${
+          avatarBackgroundColor === color
+            ? "border-[#00d084] ring-2 ring-[#00d084]/25"
+            : "border-white/15 hover:border-white/40"
+        }`}
+        style={{ backgroundColor: color }}
+      />
+    ))}
+  </div>
+
+  <div className="flex items-center gap-3">
+    <input
+      type="color"
+      value={
+        avatarBackgroundColor === "transparent"
+          ? "#00d084"
+          : avatarBackgroundColor
+      }
+      onChange={(event) => setAvatarBackgroundColor(event.target.value)}
+      className="h-11 w-14 cursor-pointer rounded-xl border border-white/15 bg-[#0c0d12] p-1"
+      aria-label="Scegli colore di sfondo avatar"
+    />
+
+    <input
+      type="text"
+      value={
+        avatarBackgroundColor === "transparent"
+          ? ""
+          : avatarBackgroundColor
+      }
+      onChange={(event) =>
+        setAvatarBackgroundColor(event.target.value || "transparent")
+      }
+      placeholder="#00d084"
+      className="min-w-0 flex-1 rounded-xl border border-white/15 bg-[#0c0d12] px-3 py-3 text-sm text-white outline-none placeholder:text-white/25 focus:border-[#00d084]"
+    />
+  </div>
+
+  <label className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-white/10 bg-[#0c0d12] px-3 py-3">
+    <span>
+      <span className="block text-sm font-bold text-white">
+        Bordo del contenitore
+      </span>
+      <span className="mt-1 block text-xs text-white/45">
+        Mostra un bordo leggero attorno alla foto.
+      </span>
+    </span>
+
+    <input
+      type="checkbox"
+      checked={avatarBorderEnabled}
+      onChange={(event) => setAvatarBorderEnabled(event.target.checked)}
+      className="h-5 w-5 cursor-pointer accent-[#00d084]"
+    />
+  </label>
+</div>
 
   </div>
   </div>
@@ -8708,6 +8846,8 @@ onResetIconObjectPosition={() => {
     bannerImageUrl={bannerImageUrl}
     avatarWidth={profileImageWidth}
     avatarPositionX={profileImagePositionX}
+    avatarBackgroundColor={avatarBackgroundColor}
+avatarBorderEnabled={avatarBorderEnabled}
     bgColor={bgColor ?? ""}
     bgImageUrl={bgImageUrl ?? ""}
     bgVideoUrl={bgVideoUrl}

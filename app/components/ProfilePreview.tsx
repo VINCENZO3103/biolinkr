@@ -116,6 +116,8 @@ type ProfilePreviewProps = {
   bannerImageUrl?: string;
   avatarWidth?: number;
   avatarPositionX?: number;
+  avatarBackgroundColor?: string;
+avatarBorderEnabled?: boolean;
   bgColor?: string;
   bgImageUrl?: string;
   videoOpacity?: number;
@@ -142,6 +144,8 @@ export default function ProfilePreview({
   bannerImageUrl = "",
   avatarWidth = 120,
   avatarPositionX = 50,
+  avatarBackgroundColor = "transparent",
+avatarBorderEnabled = true,
   bgColor = "",
   bgImageUrl,
   videoOpacity = 0.6,
@@ -299,17 +303,43 @@ export default function ProfilePreview({
       {/* CLASSIC */}
 {profileLayout === "classic" && (
   <>
-    {avatarUrl ? (
+    <div
+  className="mx-auto flex h-20 w-20 items-center justify-center overflow-hidden rounded-full"
+  style={{
+    border: avatarBorderEnabled ? "1px solid rgba(255,255,255,0.15)" : "none",
+    backgroundColor:
+      avatarBackgroundColor === "transparent"
+        ? "transparent"
+        : avatarBackgroundColor || "transparent",
+  }}
+>
+  {avatarUrl ? (
+    <div
+      className="flex h-full w-full items-center justify-center overflow-hidden rounded-full"
+      style={{
+        width: "80px",
+        height: "80px",
+      }}
+    >
       <img
         src={avatarUrl}
         alt={`Foto profilo di ${displayName || "BioLinkr"}`}
-        className="h-20 w-20 rounded-full border border-white/15 object-cover"
+        className="select-none object-cover"
+        style={{
+          width: `${avatarWidth ?? 120}px`,
+          height: `${avatarWidth ?? 120}px`,
+          maxWidth: "none",
+          maxHeight: "none",
+          objectPosition: `${avatarPositionX ?? 50}% 50%`,
+        }}
       />
-    ) : (
-      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#00d084] text-3xl font-black text-[#07100d]">
-        {displayName ? displayName.charAt(0).toUpperCase() : "B"}
-      </div>
-    )}
+    </div>
+  ) : (
+    <div className="flex h-20 w-20 items-center justify-center bg-[#00d084] text-3xl font-black text-[#07100d]">
+      {displayName ? displayName.charAt(0).toUpperCase() : "B"}
+    </div>
+  )}
+</div>
 
     <h1
       className={`mt-5 text-center font-black ${displayNameSize}`}
@@ -338,7 +368,7 @@ export default function ProfilePreview({
 
 {/* HERO */}
 {profileLayout === "hero" && (
-  <div className="relative -mx-6 -mt-10 w-[calc(100%+3rem)] overflow-hidden rounded-b-[2rem] border-b border-white/10 px-6 pb-7 pt-36 text-center">
+  <div className="relative -mx-6 -mt-10 w-[calc(100%+3rem)] px-6 pb-7 pt-36 text-center">
     {avatarUrl ? (
       <>
         <img
@@ -348,15 +378,26 @@ export default function ProfilePreview({
           className="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-sm"
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-[#0c0d12]/35 to-[#0c0d12]" />
-        <img
-          src={avatarUrl}
-          alt={`Foto profilo di ${displayName || "BioLinkr"}`}
-          className="absolute left-1/2 top-5 h-32 w-32 -translate-x-1/2 object-cover object-top drop-shadow-[0_16px_22px_rgba(0,0,0,0.65)]"
-        />
+        <div
+          className="absolute left-1/2 top-5 h-32 w-32 -translate-x-1/2 overflow-hidden rounded-full drop-shadow-[0_16px_22px_rgba(0,0,0,0.65)]"
+          style={{
+            backgroundColor:
+              avatarBackgroundColor === "transparent"
+                ? "transparent"
+                : avatarBackgroundColor || "transparent",
+          }}
+        >
+          <img
+            src={avatarUrl}
+            alt={`Foto profilo di ${displayName || "BioLinkr"}`}
+            className="h-full w-full object-cover object-top"
+          />
+        </div>
       </>
     ) : (
       <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-br from-[#00d084]/45 via-[#0c0d12] to-[#40e0d0]/25" />
     )}
+
 
     <div className="relative z-10">
       <h1
@@ -366,12 +407,14 @@ export default function ProfilePreview({
         {displayName || "Il tuo nome"}
       </h1>
 
+
       <p
         className="mt-1 text-sm font-medium"
         style={{ color: usernameColor }}
       >
         @{username || "tuo_username"}
       </p>
+
 
       {bio && (
         <p
@@ -387,7 +430,7 @@ export default function ProfilePreview({
 
 {/* BANNER */}
 {profileLayout === "banner" && (
-  <div className="relative -mx-6 -mt-10 w-[calc(100%+3rem)] overflow-hidden rounded-b-[2rem] border-b border-white/10 bg-[#0c0d12] pb-7 text-center">
+  <div className="relative -mx-6 -mt-10 w-[calc(100%+3rem)] bg-[#0c0d12] pb-7 text-center">
     <div className="relative h-28 bg-gradient-to-br from-[#00d084]/35 via-[#0c0d12] to-[#40e0d0]/25">
       {(bannerImageUrl || avatarUrl) ? (
         <>
@@ -404,20 +447,47 @@ export default function ProfilePreview({
       )}
     </div>
 
+
     <div className="relative px-6">
       <div className="-mt-10 flex justify-center">
-        {avatarUrl ? (
-          <img
-            src={avatarUrl}
-            alt={`Foto profilo di ${displayName || "BioLinkr"}`}
-            className="h-20 w-20 rounded-full border-4 border-[#0c0d12] object-cover shadow-xl"
-          />
-        ) : (
-          <div className="flex h-20 w-20 items-center justify-center rounded-full border-4 border-[#0c0d12] bg-[#00d084] text-3xl font-black text-[#07100d] shadow-xl">
-            {displayName ? displayName.charAt(0).toUpperCase() : "B"}
-          </div>
-        )}
+        <div
+          className="mx-auto flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-4 border-[#0c0d12] shadow-xl"
+          style={{
+            backgroundColor:
+              avatarBackgroundColor === "transparent"
+                ? "transparent"
+                : avatarBackgroundColor || "transparent",
+          }}
+        >
+          {avatarUrl ? (
+            <div
+              className="flex h-full w-full items-center justify-center overflow-hidden rounded-full"
+              style={{
+                width: "80px",
+                height: "80px",
+              }}
+            >
+              <img
+                src={avatarUrl}
+                alt={`Foto profilo di ${displayName || "BioLinkr"}`}
+                className="select-none object-cover"
+                style={{
+                  width: `${avatarWidth ?? 120}px`,
+                  height: `${avatarWidth ?? 120}px`,
+                  maxWidth: "none",
+                  maxHeight: "none",
+                  objectPosition: `${avatarPositionX ?? 50}% 50%`,
+                }}
+              />
+            </div>
+          ) : (
+            <div className="flex h-20 w-20 items-center justify-center bg-[#00d084] text-3xl font-black text-[#07100d]">
+              {displayName ? displayName.charAt(0).toUpperCase() : "B"}
+            </div>
+          )}
+        </div>
       </div>
+
 
       <h1
         className={`mt-4 text-center font-black ${displayNameSize}`}
@@ -426,12 +496,14 @@ export default function ProfilePreview({
         {displayName || "Il tuo nome"}
       </h1>
 
+
       <p
         className="mt-1 text-sm font-medium"
         style={{ color: usernameColor }}
       >
         @{username || "tuo_username"}
       </p>
+
 
       {bio && (
         <p
@@ -447,9 +519,10 @@ export default function ProfilePreview({
 
 {/* SHAPE */}
 {profileLayout === "shape" && (
-  <div className="relative -mx-2 w-[calc(100%+1rem)] overflow-hidden rounded-[2rem] border border-white/10 bg-[#0c0d12] px-5 py-8 text-center">
+  <div className="relative -mx-2 w-[calc(100%+1rem)] px-5 py-8 text-center">
     <div className="pointer-events-none absolute -left-16 -top-16 h-44 w-44 rounded-full bg-[#00d084]/20 blur-3xl" />
     <div className="pointer-events-none absolute -bottom-20 -right-16 h-48 w-48 rounded-full bg-[#40e0d0]/20 blur-3xl" />
+
 
     <div className="relative z-10">
       {avatarUrl ? (
@@ -468,6 +541,7 @@ export default function ProfilePreview({
         </div>
       )}
 
+
       <h1
         className={`mt-5 text-center font-black ${displayNameSize}`}
         style={{ color: displayNameColor }}
@@ -475,12 +549,14 @@ export default function ProfilePreview({
         {displayName || "Il tuo nome"}
       </h1>
 
+
       <p
         className="mt-1 text-sm font-medium"
         style={{ color: usernameColor }}
       >
         @{username || "tuo_username"}
       </p>
+
 
       {bio && (
         <p
