@@ -5210,61 +5210,6 @@ const previewProducts = products.map((p) => ({
   </section>
 )}
 
-        {activeSection === "analytics" && (
-  <section className="mt-12">
-    <article className="rounded-3xl border border-white/10 bg-[#17181e] p-8 sm:p-10">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <p className="text-sm font-bold tracking-[0.22em] text-[#00d084]">
-            TRAFFICO
-          </p>
-
-          <h2 className="mt-2 text-2xl font-black">
-            Fonti di traffico
-          </h2>
-        </div>
-
-        <span className="rounded-full bg-white/5 px-3 py-1 text-sm text-white/55">
-          {trafficSources.length}
-        </span>
-      </div>
-
-      <p className="mt-3 text-white/55">
-        Da dove arrivano le visite alla tua pagina.
-      </p>
-
-      {trafficSources.length === 0 ? (
-        <p className="mt-8 text-white/45">
-          Non ci sono ancora visite da analizzare.
-        </p>
-      ) : (
-        <div className="mt-8 space-y-4">
-          {trafficSources.map((source) => (
-            <div key={source.label}>
-              <div className="flex items-center justify-between gap-4 text-sm">
-                <p className="truncate font-bold text-white/85">
-                  {source.label}
-                </p>
-
-                <p className="shrink-0 text-white/50">
-                  {source.visits} visite · {source.percentage}%
-                </p>
-              </div>
-
-              <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
-                <div
-                  className="h-full rounded-full bg-[#00d084] transition-all"
-                  style={{ width: `${source.percentage}%` }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </article>
-  </section>
-)}
-
         {activeSection === "analytics" && abGroups.length > 0 && (
           <section className="mt-8">
             <article className="rounded-3xl border border-white/10 bg-[#17181e] p-8 sm:p-10">

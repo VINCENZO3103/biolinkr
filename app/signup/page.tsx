@@ -105,9 +105,7 @@ export default function SignupPage() {
           </h1>
 
           <p className="mt-6 text-lg text-white/60 opacity-0 animate-[fadeInUp_0.8s_0.25s_ease-out_forwards]">
-            Crea il tuo account BioLinkr e trasforma la tua pagina link in uno
-            strumento di crescita: più click, più traffico consapevole, più
-            risultati su Instagram, TikTok, YouTube e altri canali.
+            Crea il tuo BioLinkr e trasforma il tuo link in bio in uno strumento di crescita. Scopri cosa funziona, raggiungi meglio il tuo pubblico e ottieni di più da ogni visita.
           </p>
 
           {/* Mini “features” orientate a CTR / analytics */}
