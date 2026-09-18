@@ -153,17 +153,42 @@ function LinkIcon() {
   );
 }
 
+function LayoutIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="h-5 w-5"
+    >
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <path d="M3 9h18" />
+      <path d="M9 21V9" />
+    </svg>
+  );
+}
+
+function ProBadge() {
+  return (
+    <span className="rounded-full border border-[#00d084]/20 bg-[#00d084]/10 px-2.5 py-1 text-[10px] font-black tracking-[0.12em] text-[#5cf0bd]">
+      PRO
+    </span>
+  );
+}
+
 export default function HomePage() {
   return (
     <main className="min-h-screen overflow-hidden bg-[#0c0d12] text-white">
-      {/* Background */}
       <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
         <div className="absolute left-1/2 top-[-390px] h-[820px] w-[820px] -translate-x-1/2 rounded-full bg-[#00d084]/[0.1] blur-[165px]" />
         <div className="absolute right-[-300px] top-[500px] h-[560px] w-[560px] rounded-full bg-[#8b5cf6]/[0.06] blur-[150px]" />
         <div className="absolute left-[-260px] top-[1280px] h-[540px] w-[540px] rounded-full bg-[#00d084]/[0.05] blur-[150px]" />
       </div>
 
-      {/* Header */}
       <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-6 lg:px-8">
         <Link
           href="/"
@@ -203,7 +228,7 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* Hero */}
+      {/* HERO — invariato */}
       <section className="mx-auto grid w-full max-w-7xl gap-12 px-6 pb-16 pt-8 lg:grid-cols-[0.78fr_1.22fr] lg:items-center lg:gap-14 lg:px-8 lg:pb-24 lg:pt-14">
         <div className="relative z-10 max-w-2xl">
           <p className="biolinkr-reveal text-sm font-black tracking-[0.2em] text-[#00d084]">
@@ -257,7 +282,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Dashboard visual */}
+        {/* DEMO HERO — invariata */}
         <div className="relative min-w-0">
           <div className="biolinkr-glow absolute inset-x-[8%] top-[12%] h-[62%] rounded-full bg-[#00d084]/[0.14] blur-[100px]" />
 
@@ -284,111 +309,111 @@ export default function HomePage() {
                 <p className="text-[9px] font-black tracking-[0.12em] text-[#d7c5ff]/60">
                   DISTRIBUZIONE
                 </p>
+
                 <p className="mt-1 text-sm font-black text-[#d7c5ff]">
                   50% A · 50% B
                 </p>
+
                 <p className="mt-1 text-[10px] font-bold text-white/35">
                   Risultato aggiornato in tempo reale
                 </p>
               </div>
             </div>
 
-           {/* Varianti A/B allineate */}
-<div className="mt-5 grid items-stretch gap-3 sm:grid-cols-2">
-  {/* VARIANTE A */}
-  <article className="grid min-h-[290px] grid-rows-[auto_1fr_auto] rounded-3xl border border-white/10 bg-white/[0.025] p-5">
-    <div className="flex items-center justify-between">
-      <span className="rounded-xl bg-white/10 px-3 py-1.5 text-xs font-black text-white/70">
-        VARIANTE A
-      </span>
+            <div className="mt-5 grid items-stretch gap-3 sm:grid-cols-2">
+              <article className="grid min-h-[290px] grid-rows-[auto_1fr_auto] rounded-3xl border border-white/10 bg-white/[0.025] p-5">
+                <div className="flex items-center justify-between">
+                  <span className="rounded-xl bg-white/10 px-3 py-1.5 text-xs font-black text-white/70">
+                    VARIANTE A
+                  </span>
 
-      <span className="text-xs font-bold text-white/40">
-        146 click
-      </span>
-    </div>
+                  <span className="text-xs font-bold text-white/40">
+                    146 click
+                  </span>
+                </div>
 
-    <div className="pt-7">
-      <p className="min-h-[48px] text-lg font-black leading-6 text-white/80">
-        Guarda il video
-      </p>
+                <div className="pt-7">
+                  <p className="min-h-[48px] text-lg font-black leading-6 text-white/80">
+                    Guarda il video
+                  </p>
 
-      <p className="mt-2 min-h-[40px] text-sm leading-5 text-white/45">
-        CTA generica mostrata al pubblico.
-      </p>
-    </div>
+                  <p className="mt-2 min-h-[40px] text-sm leading-5 text-white/45">
+                    CTA generica mostrata al pubblico.
+                  </p>
+                </div>
 
-    <div>
-      <div className="h-2.5 overflow-hidden rounded-full bg-white/10">
-        <div className="h-full w-[45%] rounded-full bg-white/40" />
-      </div>
+                <div>
+                  <div className="h-2.5 overflow-hidden rounded-full bg-white/10">
+                    <div className="h-full w-[45%] rounded-full bg-white/40" />
+                  </div>
 
-      <div className="mt-3 flex items-end justify-between">
-        <p className="text-3xl font-black tracking-[-0.06em] text-white/70">
-          5,8%
-        </p>
+                  <div className="mt-3 flex items-end justify-between">
+                    <p className="text-3xl font-black tracking-[-0.06em] text-white/70">
+                      5,8%
+                    </p>
 
-        <span className="text-xs font-bold text-white/40">
-          CTR
-        </span>
-      </div>
-    </div>
-  </article>
+                    <span className="text-xs font-bold text-white/40">
+                      CTR
+                    </span>
+                  </div>
+                </div>
+              </article>
 
-  {/* VARIANTE B */}
-  <article className="grid min-h-[290px] grid-rows-[auto_1fr_auto] rounded-3xl border border-[#a78bfa]/60 bg-gradient-to-br from-[#8b5cf6]/25 to-[#8b5cf6]/[0.08] p-5 shadow-[0_18px_45px_rgba(139,92,246,0.16)]">
-    <div className="flex items-center justify-between">
-      <span className="rounded-xl bg-[#8b5cf6]/30 px-3 py-1.5 text-xs font-black text-[#f1ebff]">
-        VARIANTE B
-      </span>
+              <article className="grid min-h-[290px] grid-rows-[auto_1fr_auto] rounded-3xl border border-[#a78bfa]/60 bg-gradient-to-br from-[#8b5cf6]/25 to-[#8b5cf6]/[0.08] p-5 shadow-[0_18px_45px_rgba(139,92,246,0.16)]">
+                <div className="flex items-center justify-between">
+                  <span className="rounded-xl bg-[#8b5cf6]/30 px-3 py-1.5 text-xs font-black text-[#f1ebff]">
+                    VARIANTE B
+                  </span>
 
-      <span className="text-xs font-bold text-[#e0d1ff]">
-        219 click
-      </span>
-    </div>
+                  <span className="text-xs font-bold text-[#e0d1ff]">
+                    219 click
+                  </span>
+                </div>
 
-    <div className="pt-7">
-      <p className="min-h-[48px] text-lg font-black leading-6 text-white">
-        Guarda l&apos;ultimo video
-      </p>
+                <div className="pt-7">
+                  <p className="min-h-[48px] text-lg font-black leading-6 text-white">
+                    Guarda l&apos;ultimo video
+                  </p>
 
-      <p className="mt-2 min-h-[40px] text-sm leading-5 text-[#e0d1ff]/65">
-        CTA specifica e orientata al contenuto.
-      </p>
-    </div>
+                  <p className="mt-2 min-h-[40px] text-sm leading-5 text-[#e0d1ff]/65">
+                    CTA specifica e orientata al contenuto.
+                  </p>
+                </div>
 
-    <div>
-      <div className="h-2.5 overflow-hidden rounded-full bg-white/10">
-        <div className="h-full w-[70%] rounded-full bg-[#a78bfa]" />
-      </div>
+                <div>
+                  <div className="h-2.5 overflow-hidden rounded-full bg-white/10">
+                    <div className="h-full w-[70%] rounded-full bg-[#a78bfa]" />
+                  </div>
 
-      <div className="mt-3 flex items-end justify-between">
-        <p className="text-3xl font-black tracking-[-0.06em] text-[#f1ebff]">
-          8,7%
-        </p>
+                  <div className="mt-3 flex items-end justify-between">
+                    <p className="text-3xl font-black tracking-[-0.06em] text-[#f1ebff]">
+                      8,7%
+                    </p>
 
-        <span className="text-xs font-bold text-[#e0d1ff]">
-          CTR
-        </span>
-      </div>
-    </div>
-  </article>
-</div>
+                    <span className="text-xs font-bold text-[#e0d1ff]">
+                      CTR
+                    </span>
+                  </div>
+                </div>
+              </article>
+            </div>
 
             <div className="biolinkr-pulse-ring mt-4 flex flex-col gap-4 rounded-2xl border border-[#00d084]/25 bg-[#00d084]/12 p-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-sm font-black text-[#5cf0bd]">
                   La variante B è in vantaggio.
                 </p>
+
                 <p className="mt-1 text-xs text-white/50">
                   Più click con lo stesso numero di visitatori.
                 </p>
               </div>
+
               <span className="biolinkr-energy-badge w-fit rounded-xl bg-[#00d084] px-4 py-2.5 text-sm font-black text-[#07100d]">
                 +50% CTR
               </span>
             </div>
 
-            {/* Targeting + Link intelligenti */}
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <article className="relative overflow-hidden rounded-3xl border border-[#00d084]/25 bg-[#0c0d12]/60 p-5">
                 <div className="absolute -right-10 -top-10 h-28 w-28 rounded-full bg-[#00d084]/10 blur-3xl" />
@@ -397,10 +422,7 @@ export default function HomePage() {
                   <span className="inline-flex rounded-2xl border border-[#00d084]/20 bg-[#00d084]/10 p-3 text-[#5cf0bd]">
                     <TargetIcon />
                   </span>
-
-                  <span className="rounded-full border border-[#00d084]/20 bg-[#00d084]/10 px-3 py-1 text-[10px] font-black tracking-[0.12em] text-[#5cf0bd]">
-                    PRO
-                  </span>
+                  <ProBadge />
                 </div>
 
                 <h3 className="relative mt-5 text-lg font-black tracking-[-0.04em]">
@@ -443,8 +465,8 @@ export default function HomePage() {
                 </h3>
 
                 <p className="relative mt-2 text-sm leading-6 text-white/55">
-                  Programma i tuoi link, ordina le priorità e fai comparire la
-                  CTA giusta nel momento in cui conta.
+                  Programma i tuoi link, gestisci le priorità e fai comparire la
+                  CTA giusta nel momento più utile.
                 </p>
 
                 <div className="relative mt-4 rounded-xl border border-[#8b5cf6]/20 bg-[#8b5cf6]/10 p-3">
@@ -452,6 +474,7 @@ export default function HomePage() {
                     <span className="text-xs font-black text-[#d7c5ff]">
                       NUOVO VIDEO
                     </span>
+
                     <span className="text-xs font-bold text-[#d7c5ff]/70">
                       Live oggi
                     </span>
@@ -467,8 +490,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Prima / Dopo */}
-      <section className="border-y border-white/10 bg-white/[0.02] py-16 lg:py-20">
+      {/* PRIMA / DOPO — più compatta */}
+      <section className="border-y border-white/10 bg-white/[0.02] py-12 sm:py-14 lg:py-16">
         <div className="mx-auto w-full max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
             <p className="text-sm font-black tracking-[0.2em] text-[#00d084]">
@@ -483,14 +506,14 @@ export default function HomePage() {
             </h2>
           </div>
 
-          <div className="mx-auto mt-8 grid max-w-5xl gap-4 md:grid-cols-2">
-            <article className="rounded-[28px] border border-white/10 bg-[#121319] p-6 sm:p-8">
-              <div className="flex items-center justify-between border-b border-white/10 pb-5">
+          <div className="mx-auto mt-7 grid max-w-5xl gap-3 sm:mt-8 sm:gap-4 md:grid-cols-2">
+            <article className="rounded-[28px] border border-white/10 bg-[#121319] p-5 sm:p-6 lg:p-7">
+              <div className="flex items-center justify-between border-b border-white/10 pb-4">
                 <div>
                   <p className="text-[10px] font-black tracking-[0.16em] text-white/35">
                     PRIMA
                   </p>
-                  <h3 className="mt-1 text-2xl font-black tracking-[-0.05em] text-white/70">
+                  <h3 className="mt-1 text-xl font-black tracking-[-0.05em] text-white/70 sm:text-2xl">
                     Senza BioLinkr
                   </h3>
                 </div>
@@ -500,7 +523,7 @@ export default function HomePage() {
                 </span>
               </div>
 
-              <div className="mt-6 space-y-3">
+              <div className="mt-5 space-y-3">
                 <div className="rounded-2xl border border-white/10 bg-white/[0.025] p-4">
                   <p className="text-[10px] font-black tracking-[0.12em] text-white/35">
                     CTR MEDIO
@@ -510,6 +533,7 @@ export default function HomePage() {
                     <p className="text-3xl font-black tracking-[-0.06em] text-white/70">
                       5,8%
                     </p>
+
                     <p className="text-right text-xs font-bold text-white/40">
                       Link principale
                     </p>
@@ -520,6 +544,7 @@ export default function HomePage() {
                   <p className="text-[10px] font-black tracking-[0.12em] text-white/35">
                     DECISIONE
                   </p>
+
                   <p className="mt-2 text-base font-black text-white/65">
                     Modifichi i link a intuito.
                   </p>
@@ -527,23 +552,24 @@ export default function HomePage() {
               </div>
             </article>
 
-            <article className="relative overflow-hidden rounded-[28px] border border-[#00d084]/35 bg-gradient-to-br from-[#00d084]/15 via-[#121319] to-[#121319] p-6 shadow-[0_25px_60px_rgba(0,208,132,0.08)] sm:p-8">
-              <div className="relative flex items-center justify-between border-b border-[#00d084]/20 pb-5">
+            <article className="relative overflow-hidden rounded-[28px] border border-[#00d084]/35 bg-gradient-to-br from-[#00d084]/15 via-[#121319] to-[#121319] p-5 shadow-[0_25px_60px_rgba(0,208,132,0.08)] sm:p-6 lg:p-7">
+              <div className="relative flex items-center justify-between border-b border-[#00d084]/20 pb-4">
                 <div>
                   <p className="text-[10px] font-black tracking-[0.16em] text-[#5cf0bd]">
                     DOPO
                   </p>
-                  <h3 className="mt-1 text-2xl font-black tracking-[-0.05em] text-white">
+
+                  <h3 className="mt-1 text-xl font-black tracking-[-0.05em] text-white sm:text-2xl">
                     Con BioLinkr
                   </h3>
                 </div>
 
                 <span className="rounded-xl bg-[#00d084] px-3 py-2 text-xs font-black text-[#07100d]">
-                  +50% CTR
+                  TEST COMPLETATO
                 </span>
               </div>
 
-              <div className="relative mt-6 space-y-3">
+              <div className="relative mt-5 space-y-3">
                 <div className="rounded-2xl border border-[#00d084]/20 bg-[#00d084]/10 p-4">
                   <p className="text-[10px] font-black tracking-[0.12em] text-[#5cf0bd]">
                     CTR MEDIO
@@ -553,6 +579,7 @@ export default function HomePage() {
                     <p className="text-3xl font-black tracking-[-0.06em] text-[#5cf0bd]">
                       8,7%
                     </p>
+
                     <p className="text-right text-xs font-bold text-[#5cf0bd]/70">
                       Dopo il test
                     </p>
@@ -563,6 +590,7 @@ export default function HomePage() {
                   <p className="text-[10px] font-black tracking-[0.12em] text-[#5cf0bd]">
                     DECISIONE
                   </p>
+
                   <p className="mt-2 text-base font-black text-white">
                     Applichi ciò che funziona.
                   </p>
@@ -573,10 +601,10 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Come funziona */}
+      {/* COME FUNZIONA */}
       <section
         id="come-funziona"
-        className="border-y border-white/10 bg-[#101116] py-16 lg:py-20"
+        className="border-y border-white/10 bg-[#101116] py-12 sm:py-14 lg:py-16"
       >
         <div className="mx-auto w-full max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
@@ -590,13 +618,13 @@ export default function HomePage() {
             </h2>
 
             <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-white/60 sm:text-lg sm:leading-8">
-              Trasforma una semplice pagina con link in un sistema che ti aiuta
-              a capire il traffico e aumentare le conversioni.
+              Trasforma una semplice pagina link in un sistema che ti aiuta a
+              capire il traffico e ottimizzare ogni visita.
             </p>
           </div>
 
-          <div className="relative isolate mt-10 grid gap-4 md:grid-cols-3">
-            <article className="biolinkr-card relative rounded-[28px] border border-white/10 bg-[#17181e] p-7">
+          <div className="relative isolate mt-8 grid gap-3 sm:mt-10 sm:gap-4 md:grid-cols-3">
+            <article className="biolinkr-card relative rounded-[28px] border border-white/10 bg-[#17181e] p-6 sm:p-7">
               <div className="flex items-start justify-between">
                 <span className="text-5xl font-black tracking-[-0.09em] text-white/[0.08]">
                   01
@@ -607,7 +635,7 @@ export default function HomePage() {
                 </span>
               </div>
 
-              <p className="mt-10 text-[10px] font-black tracking-[0.15em] text-[#00d084]">
+              <p className="mt-8 text-[10px] font-black tracking-[0.15em] text-[#00d084] sm:mt-10">
                 PUBBLICA
               </p>
 
@@ -621,7 +649,7 @@ export default function HomePage() {
               </p>
             </article>
 
-            <article className="biolinkr-card relative rounded-[28px] border border-[#8b5cf6]/25 bg-[#17181e] p-7">
+            <article className="biolinkr-card relative rounded-[28px] border border-[#8b5cf6]/25 bg-[#17181e] p-6 sm:p-7">
               <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-[#8b5cf6]/12 blur-3xl" />
 
               <div className="relative flex items-start justify-between">
@@ -634,7 +662,7 @@ export default function HomePage() {
                 </span>
               </div>
 
-              <p className="relative mt-10 text-[10px] font-black tracking-[0.15em] text-[#c4b5fd]">
+              <p className="relative mt-8 text-[10px] font-black tracking-[0.15em] text-[#c4b5fd] sm:mt-10">
                 CONFRONTA
               </p>
 
@@ -643,12 +671,12 @@ export default function HomePage() {
               </h3>
 
               <p className="relative mt-3 leading-7 text-white/55">
-                Confronta titoli, CTA o destinazioni del link. BioLinkr divide il
-                traffico e misura quale variante riceve più click.
+                Confronta titoli, CTA o destinazioni del link. BioLinkr divide
+                il traffico e misura quale variante riceve più click.
               </p>
             </article>
 
-            <article className="biolinkr-card relative overflow-hidden rounded-[28px] border border-[#00d084]/30 bg-gradient-to-br from-[#00d084]/12 via-[#17181e] to-[#17181e] p-7">
+            <article className="biolinkr-card relative overflow-hidden rounded-[28px] border border-[#00d084]/30 bg-gradient-to-br from-[#00d084]/12 via-[#17181e] to-[#17181e] p-6 sm:p-7">
               <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-[#00d084]/15 blur-3xl" />
 
               <div className="relative flex items-start justify-between">
@@ -661,7 +689,7 @@ export default function HomePage() {
                 </span>
               </div>
 
-              <p className="relative mt-10 text-[10px] font-black tracking-[0.15em] text-[#5cf0bd]">
+              <p className="relative mt-8 text-[10px] font-black tracking-[0.15em] text-[#5cf0bd] sm:mt-10">
                 OTTIMIZZA
               </p>
 
@@ -670,18 +698,18 @@ export default function HomePage() {
               </h3>
 
               <p className="relative mt-3 leading-7 text-white/55">
-                Usa CTR, fonti di traffico e targeting per rendere ogni visita
-                più utile e ogni CTA più rilevante.
+                Usa CTR, fonti di traffico e targeting per mostrare contenuti più
+                rilevanti a ogni visitatore.
               </p>
             </article>
           </div>
         </div>
       </section>
 
-      {/* Funzioni */}
+      {/* TUTTO IL NECESSARIO */}
       <section
         id="funzioni"
-        className="mx-auto w-full max-w-7xl px-6 py-16 lg:px-8 lg:py-20"
+        className="mx-auto w-full max-w-7xl px-6 py-12 sm:py-14 lg:px-8 lg:py-16"
       >
         <div className="mx-auto max-w-3xl text-center">
           <p className="text-sm font-black tracking-[0.2em] text-[#00d084]">
@@ -693,13 +721,13 @@ export default function HomePage() {
           </h2>
         </div>
 
-        <div className="mt-10 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <article className="biolinkr-card rounded-[28px] border border-white/10 bg-[#17181e] p-7">
+        <div className="mt-8 grid gap-3 sm:mt-10 sm:gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <article className="biolinkr-card rounded-[28px] border border-white/10 bg-[#17181e] p-6 sm:p-7">
             <span className="inline-flex rounded-2xl bg-[#00d084]/10 p-3 text-[#5cf0bd]">
               <LinkIcon />
             </span>
 
-            <h3 className="mt-7 text-2xl font-black tracking-[-0.045em]">
+            <h3 className="mt-5 text-2xl font-black tracking-[-0.045em] sm:mt-7">
               Pagina bio personalizzata
             </h3>
 
@@ -709,12 +737,12 @@ export default function HomePage() {
             </p>
           </article>
 
-          <article className="biolinkr-card rounded-[28px] border border-white/10 bg-[#17181e] p-7">
+          <article className="biolinkr-card rounded-[28px] border border-white/10 bg-[#17181e] p-6 sm:p-7">
             <span className="inline-flex rounded-2xl bg-[#00d084]/10 p-3 text-[#5cf0bd]">
               <ChartIcon />
             </span>
 
-            <h3 className="mt-7 text-2xl font-black tracking-[-0.045em]">
+            <h3 className="mt-5 text-2xl font-black tracking-[-0.045em] sm:mt-7">
               Analytics e CTR
             </h3>
 
@@ -724,12 +752,12 @@ export default function HomePage() {
             </p>
           </article>
 
-          <article className="biolinkr-card rounded-[28px] border border-[#8b5cf6]/25 bg-[#17181e] p-7">
+          <article className="biolinkr-card rounded-[28px] border border-[#8b5cf6]/25 bg-[#17181e] p-6 sm:p-7">
             <span className="inline-flex rounded-2xl bg-[#8b5cf6]/10 p-3 text-[#d7c5ff]">
               <TrendIcon />
             </span>
 
-            <h3 className="mt-7 text-2xl font-black tracking-[-0.045em]">
+            <h3 className="mt-5 text-2xl font-black tracking-[-0.045em] sm:mt-7">
               A/B test sui link
             </h3>
 
@@ -739,12 +767,15 @@ export default function HomePage() {
             </p>
           </article>
 
-          <article className="biolinkr-card rounded-[28px] border border-[#00d084]/25 bg-[#17181e] p-7">
-            <span className="inline-flex rounded-2xl bg-[#00d084]/10 p-3 text-[#5cf0bd]">
-              <TargetIcon />
-            </span>
+          <article className="biolinkr-card relative overflow-hidden rounded-[28px] border border-[#00d084]/25 bg-[#17181e] p-6 sm:p-7">
+            <div className="flex items-start justify-between gap-4">
+              <span className="inline-flex rounded-2xl bg-[#00d084]/10 p-3 text-[#5cf0bd]">
+                <TargetIcon />
+              </span>
+              <ProBadge />
+            </div>
 
-            <h3 className="mt-7 text-2xl font-black tracking-[-0.045em]">
+            <h3 className="mt-5 text-2xl font-black tracking-[-0.045em] sm:mt-7">
               Targeting avanzato
             </h3>
 
@@ -754,12 +785,12 @@ export default function HomePage() {
             </p>
           </article>
 
-          <article className="biolinkr-card rounded-[28px] border border-[#8b5cf6]/25 bg-[#17181e] p-7">
+          <article className="biolinkr-card rounded-[28px] border border-[#8b5cf6]/25 bg-[#17181e] p-6 sm:p-7">
             <span className="inline-flex rounded-2xl bg-[#8b5cf6]/10 p-3 text-[#d7c5ff]">
               <CalendarIcon />
             </span>
 
-            <h3 className="mt-7 text-2xl font-black tracking-[-0.045em]">
+            <h3 className="mt-5 text-2xl font-black tracking-[-0.045em] sm:mt-7">
               Link intelligenti
             </h3>
 
@@ -769,33 +800,21 @@ export default function HomePage() {
             </p>
           </article>
 
-          <article className="biolinkr-card rounded-[28px] border border-white/10 bg-[#17181e] p-7">
-            <span className="inline-flex rounded-2xl bg-[#00d084]/10 p-3 text-[#5cf0bd]">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-                className="h-5 w-5"
-              >
-                <path d="M4 6h16" />
-                <path d="M4 12h10" />
-                <path d="M4 18h16" />
-                <path d="M17 10v4" />
-                <path d="M15 12h4" />
-              </svg>
-            </span>
+          <article className="biolinkr-card relative overflow-hidden rounded-[28px] border border-[#00d084]/25 bg-[#17181e] p-6 sm:p-7">
+            <div className="flex items-start justify-between gap-4">
+              <span className="inline-flex rounded-2xl bg-[#00d084]/10 p-3 text-[#5cf0bd]">
+                <LayoutIcon />
+              </span>
+              <ProBadge />
+            </div>
 
-            <h3 className="mt-7 text-2xl font-black tracking-[-0.045em]">
-              Social e prodotti
+            <h3 className="mt-5 text-2xl font-black tracking-[-0.045em] sm:mt-7">
+              Layout avanzati
             </h3>
 
             <p className="mt-3 leading-7 text-white/55">
-              Aggiungi i tuoi social, scegli dove mostrarli e porta prodotti
-              digitali o link di vendita direttamente nella tua pagina.
+              Scegli tra layout esclusivi, video background e personalizzazioni
+              avanzate per creare una pagina davvero tua.
             </p>
           </article>
         </div>
@@ -804,9 +823,9 @@ export default function HomePage() {
       {/* FAQ */}
       <section
         id="faq"
-        className="border-t border-white/10 bg-[#101116] py-16 lg:py-20"
+        className="border-t border-white/10 bg-[#101116] py-12 sm:py-14 lg:py-16"
       >
-        <div className="mx-auto grid w-full max-w-7xl gap-12 px-6 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20 lg:px-8">
+        <div className="mx-auto grid w-full max-w-7xl gap-10 px-6 lg:grid-cols-[0.8fr_1.2fr] lg:gap-20 lg:px-8">
           <div className="lg:sticky lg:top-10 lg:self-start">
             <p className="text-sm font-black tracking-[0.2em] text-[#00d084]">
               DOMANDE FREQUENTI
@@ -885,6 +904,21 @@ export default function HomePage() {
 
             <details className="group px-5 py-5 sm:px-7 sm:py-6">
               <summary className="flex cursor-pointer list-none items-center justify-between gap-5 text-base font-black text-white marker:content-none sm:text-lg">
+                Cosa include BioLinkr Pro?
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-lg font-medium text-[#5cf0bd] transition duration-300 group-open:rotate-45">
+                  +
+                </span>
+              </summary>
+
+              <p className="max-w-xl pt-4 text-sm leading-7 text-white/55 sm:text-base">
+                BioLinkr Pro include strumenti avanzati come targeting per paese,
+                dispositivo e sorgente, oltre a layout esclusivi, video background
+                e personalizzazioni avanzate della pagina.
+              </p>
+            </details>
+
+            <details className="group px-5 py-5 sm:px-7 sm:py-6">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-5 text-base font-black text-white marker:content-none sm:text-lg">
                 Serve una carta di credito per iniziare?
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-lg font-medium text-[#5cf0bd] transition duration-300 group-open:rotate-45">
                   +
@@ -900,23 +934,23 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* CTA finale */}
-      <section className="mx-auto w-full max-w-7xl px-6 pb-12 pt-16 lg:px-8 lg:pb-16">
+      {/* CTA FINALE — visual invariato, copy aggiornato */}
+      <section className="mx-auto w-full max-w-7xl px-6 pb-12 pt-12 sm:pt-14 lg:px-8 lg:pb-16 lg:pt-16">
         <div className="relative overflow-hidden rounded-[36px] border border-[#00d084]/25 bg-gradient-to-br from-[#00d084]/20 via-[#0f3f31] to-[#17181e] px-7 py-14 sm:px-12 sm:py-20">
           <div className="biolinkr-glow absolute right-[-100px] top-[-180px] h-[400px] w-[400px] rounded-full bg-[#00d084]/20 blur-[100px]" />
 
           <div className="relative max-w-3xl">
             <p className="text-sm font-black tracking-[0.2em] text-[#5cf0bd]">
-              SMETTI DI INDOVINARE
+              IL TUO TRAFFICO VALE DI PIÙ
             </p>
 
             <h2 className="mt-5 text-4xl font-black leading-[0.98] tracking-[-0.065em] sm:text-6xl">
-              Ogni click può insegnarti qualcosa.
+              Fai lavorare meglio ogni click.
             </h2>
 
             <p className="mt-6 max-w-2xl text-lg leading-8 text-white/65">
-              Crea la tua pagina BioLinkr, osserva come le persone la usano e
-              migliora ciò che conta davvero: il prossimo click.
+              Crea la tua pagina, scopri cosa funziona e mostra a ogni
+              visitatore il contenuto più rilevante.
             </p>
 
             <Link
@@ -930,7 +964,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Footer */}
       <footer className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-6 py-9 text-sm text-white/40 sm:flex-row sm:items-center sm:justify-between lg:px-8">
         <Link
           href="/"
