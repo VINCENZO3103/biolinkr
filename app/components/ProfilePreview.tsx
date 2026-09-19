@@ -123,6 +123,8 @@ avatarBorderEnabled?: boolean;
   videoOpacity?: number;
   bgVideoUrl?: string | null;
   buttonStyle?: "solid" | "outline" | "glass";
+  globalButtonBgColor?: string;
+globalButtonTextColor?: string;
   displayNameColor?: string;
   usernameColor?: string;
   bioColor?: string;
@@ -162,6 +164,8 @@ avatarBorderEnabled = true,
   displayNameSize = "text-4xl",
   bioSize = "text-base",
   profileLayout = "classic",
+  globalButtonBgColor = "",
+  globalButtonTextColor = "",
 }: ProfilePreviewProps) {
   const [showProducts, setShowProducts] = useState(false);
   const draggedSocialIdRef = useRef<string | null>(null);
@@ -379,20 +383,27 @@ avatarBorderEnabled = true,
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-[#0c0d12]/35 to-[#0c0d12]" />
         <div
-          className="absolute left-1/2 top-5 h-32 w-32 -translate-x-1/2 overflow-hidden rounded-full drop-shadow-[0_16px_22px_rgba(0,0,0,0.65)]"
-          style={{
-            backgroundColor:
-              avatarBackgroundColor === "transparent"
-                ? "transparent"
-                : avatarBackgroundColor || "transparent",
-          }}
-        >
-          <img
-            src={avatarUrl}
-            alt={`Foto profilo di ${displayName || "BioLinkr"}`}
-            className="h-full w-full object-cover object-top"
-          />
-        </div>
+  className="absolute left-1/2 top-4 h-24 w-24 -translate-x-1/2 overflow-hidden rounded-full drop-shadow-[0_12px_18px_rgba(0,0,0,0.65)]"
+  style={{
+    backgroundColor:
+      avatarBackgroundColor === "transparent"
+        ? "transparent"
+        : avatarBackgroundColor || "transparent",
+  }}
+>
+  <img
+    src={avatarUrl}
+    alt={`Foto profilo di ${displayName || "BioLinkr"}`}
+    className="h-full w-full object-cover"
+    style={{
+      width: "100%",
+      height: "100%",
+      objectPosition: `${avatarPositionX ?? 50}% 50%`,
+      transform: `scale(${(avatarWidth ?? 120) / 120})`,
+      transformOrigin: "center center",
+    }}
+  />
+</div>
       </>
     ) : (
       <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-br from-[#00d084]/45 via-[#0c0d12] to-[#40e0d0]/25" />
@@ -526,15 +537,23 @@ avatarBorderEnabled = true,
 
     <div className="relative z-10">
       {avatarUrl ? (
-        <div className="mx-auto h-28 w-36 overflow-hidden bg-gradient-to-br from-[#00d084] via-[#40e0d0] to-[#056963] p-1 [border-radius:42%_58%_55%_45%/45%_42%_58%_55%]">
-          <div className="h-full w-full overflow-hidden bg-[#0c0d12] [border-radius:42%_58%_55%_45%/45%_42%_58%_55%]">
-            <img
-              src={avatarUrl}
-              alt={`Foto profilo di ${displayName || "BioLinkr"}`}
-              className="h-full w-full object-cover"
-            />
-          </div>
-        </div>
+        <div className="mx-auto h-24 w-32 overflow-hidden bg-gradient-to-br from-[#00d084] via-[#40e0d0] to-[#056963] p-1 [border-radius:42%_58%_55%_45%/45%_42%_58%_55%]">
+  <div className="h-full w-full overflow-hidden bg-[#0c0d12] [border-radius:42%_58%_55%_45%/45%_42%_58%_55%]">
+    <img
+  src={avatarUrl}
+  alt={`Foto profilo di ${displayName || "BioLinkr"}`}
+  className="h-full w-full object-cover"
+  style={{
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    objectPosition: `${avatarPositionX ?? 50}% 50%`,
+    transform: `scale(${1.45 * ((avatarWidth ?? 120) / 120)})`,
+    transformOrigin: "center center",
+  }}
+/>
+  </div>
+</div>
       ) : (
         <div className="mx-auto flex h-28 w-36 items-center justify-center bg-[#00d084] text-4xl font-black text-[#07100d] [border-radius:42%_58%_55%_45%/45%_42%_58%_55%]">
           {displayName ? displayName.charAt(0).toUpperCase() : "B"}
@@ -632,11 +651,16 @@ avatarBorderEnabled = true,
                 rel="noopener noreferrer"
                 data-hover-effect={link.hover_effect || "none"}
                 className={`group relative flex w-full items-center justify-center rounded-xl px-4 py-3 text-sm font-black transition ${getButtonStyleClass()}`}
-                style={
-                  link.background_color
-                    ? { background: link.background_color }
-                    : undefined
-                }
+                style={{
+  background:
+    link.background_color ||
+    globalButtonBgColor ||
+    undefined,
+  color:
+    link.text_color ||
+    globalButtonTextColor ||
+    undefined,
+}}
               >
                 {link.icon_url && (
                   <span

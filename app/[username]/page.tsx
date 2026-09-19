@@ -33,6 +33,8 @@ avatar_border_enabled: boolean | null;
   bg_video_url: string | null;
   video_opacity: number | null;
   button_style: string;
+  global_button_bg_color: string | null;
+global_button_text_color: string | null;
   display_name_color: string | null;
   username_color: string | null;
   bio_color: string | null;
@@ -180,7 +182,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
   const { data: profile, error: profileError } = await supabase
   .from("profiles")
   .select(
-    "id, username, display_name, bio, avatar_url, avatar_width, avatar_height, avatar_position_x, avatar_position_y, avatar_background_color, avatar_border_enabled, bg_color, bg_image_url, banner_image_url, bg_video_url, button_style, social_position, display_name_color, username_color, bio_color, display_name_size, bio_size, video_opacity, plan, subscription_status, profile_layout"
+    "id, username, display_name, bio, avatar_url, avatar_width, avatar_height, avatar_position_x, avatar_position_y, avatar_background_color, avatar_border_enabled, bg_color, bg_image_url, banner_image_url, bg_video_url, button_style, social_position, display_name_color, username_color, bio_color, display_name_size, bio_size, video_opacity, plan, subscription_status, profile_layout, global_button_bg_color, global_button_text_color"
   )
   .eq("username", username.toLowerCase())
   .maybeSingle();
@@ -281,8 +283,8 @@ console.log("publicProfile.bg_color:", publicProfile.bg_color);
 
   return (
   <main className="relative min-h-screen px-6 py-12 text-white">
-    {/* Sfondo: video > immagine > colore */}
-    {publicProfile.bg_video_url ? (
+    {/* Sfondo: video > immagine > colore/gradiente */}
+{publicProfile.bg_video_url ? (
   <video
     autoPlay
     loop
@@ -297,25 +299,25 @@ console.log("publicProfile.bg_color:", publicProfile.bg_color);
     <source src={publicProfile.bg_video_url} type="video/mp4" />
     <source src={publicProfile.bg_video_url} type="video/webm" />
   </video>
-    ) : publicProfile.bg_image_url ? (
-      <div
-        className="absolute inset-0 h-full w-full"
-        style={{
-          backgroundImage: `url(${publicProfile.bg_image_url})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          zIndex: 0,
-        }}
-      />
-    ) : (
-      <div
-        className="absolute inset-0 h-full w-full"
-        style={{
-          backgroundColor: publicProfile.bg_color ?? "#0c0d12",
-          zIndex: 0,
-        }}
-      />
-    )}
+) : publicProfile.bg_image_url ? (
+  <div
+    className="absolute inset-0 h-full w-full"
+    style={{
+      backgroundImage: `url(${publicProfile.bg_image_url})`,
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+      zIndex: 0,
+    }}
+  />
+) : (
+  <div
+    className="absolute inset-0 h-full w-full"
+    style={{
+      background: publicProfile.bg_color ?? "#0c0d12",
+      zIndex: 0,
+    }}
+  />
+)}
 
     {/* Contenuto sopra lo sfondo */}
     <div className="relative z-10">
@@ -425,94 +427,68 @@ className="relative z-20 mb-8 text-3xl font-black tracking-tight text-white/60 t
     </div>
   )}
 
-  {/* HERO PRO — immagine centrata con bordo completamente invisibile */}
+  {/* HERO PRO */}
 {selectedLayout === "hero" && (
-  <div className="relative -mt-8 w-full px-6 pb-10 pt-8 text-center">
-    <div className="relative mx-auto flex max-w-xl flex-col items-center">
-      {publicProfile.avatar_url ? (
+  <div className="relative -mx-6 -mt-10 w-[calc(100%+3rem)] px-6 pb-7 pt-36 text-center">
+    {publicProfile.avatar_url ? (
+      <>
+        <img
+          src={publicProfile.avatar_url}
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-sm"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-[#0c0d12]/35 to-[#0c0d12]" />
         <div
-  className="relative h-52 w-full max-w-sm sm:h-64"
-  style={{
-    backgroundColor:
-      publicProfile.avatar_background_color === "transparent" ||
-      !publicProfile.avatar_background_color
-        ? "transparent"
-        : publicProfile.avatar_background_color,
-  }}
->
-  {/* Bagliore molto morbido: non è una card */}
-  <div className="pointer-events-none absolute inset-x-8 bottom-2 h-24 rounded-full bg-[#00d084]/20 blur-3xl" />
-
-  {/* La foto è centrata, ma sfuma nei bordi */}
-  <img
-    src={publicProfile.avatar_url}
-    alt={publicProfile.display_name}
-    draggable={false}
-    className="absolute inset-0 h-full w-full object-cover"
-    style={{
-      objectPosition: `${publicProfile.avatar_position_x ?? 50}% 40%`,
-      pointerEvents: "none",
-      userSelect: "none",
-      WebkitMaskImage:
-        "radial-gradient(ellipse 72% 95% at 50% 45%, black 48%, transparent 78%)",
-      maskImage:
-        "radial-gradient(ellipse 72% 95% at 50% 45%, black 48%, transparent 78%)",
-    }}
-  />
-
-  {/* Una seconda maschera sfuma il fondo, senza colore di sfondo */}
-  <div
-    className="pointer-events-none absolute inset-0"
-    style={{
-      WebkitMaskImage:
-        "linear-gradient(to bottom, transparent 0%, black 18%, black 58%, transparent 100%)",
-      maskImage:
-        "linear-gradient(to bottom, transparent 0%, black 18%, black 58%, transparent 100%)",
-    }}
-  />
-</div>
-      ) : (
-        <div className="relative flex h-40 w-40 items-center justify-center">
-          <div className="absolute inset-0 rounded-full bg-[#00d084]/25 blur-3xl" />
-          <div className="relative flex h-28 w-28 items-center justify-center rounded-full bg-[#00d084] text-5xl font-black text-[#07100d]">
-            {publicProfile.display_name
-              ? publicProfile.display_name.charAt(0).toUpperCase()
-              : "B"}
-          </div>
+          className="absolute left-1/2 top-4 h-24 w-24 -translate-x-1/2 overflow-hidden rounded-full drop-shadow-[0_12px_18px_rgba(0,0,0,0.65)]"
+          style={{
+            backgroundColor:
+              publicProfile.avatar_background_color === "transparent"
+                ? "transparent"
+                : publicProfile.avatar_background_color || "transparent",
+          }}
+        >
+          <img
+            src={publicProfile.avatar_url}
+            alt={publicProfile.display_name}
+            className="h-full w-full object-cover"
+            style={{
+              width: "100%",
+              height: "100%",
+              objectPosition: `${publicProfile.avatar_position_x ?? 50}% 50%`,
+              transform: `scale(${(publicProfile.avatar_width ?? 120) / 120})`,
+              transformOrigin: "center center",
+            }}
+          />
         </div>
-      )}
+      </>
+    ) : (
+      <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-br from-[#00d084]/45 via-[#0c0d12] to-[#40e0d0]/25" />
+    )}
 
-      <p
-        className="mt-3 text-[10px] font-black uppercase tracking-[0.38em]"
-        style={{
-          color: publicProfile.username_color || "#00d084",
-          textShadow: "0 2px 16px rgba(0,0,0,0.65)",
-        }}
-      >
-        @{publicProfile.username}
-      </p>
-
+    <div className="relative z-10">
       <h1
-        className={`mt-5 max-w-xl text-balance font-black leading-[0.84] tracking-[-0.075em] ${
+        className={`text-center font-black ${
           publicProfile.display_name_size || "text-4xl"
-        } sm:text-7xl`}
-        style={{
-          color: publicProfile.display_name_color || "#ffffff",
-          textShadow: "0 8px 34px rgba(0,0,0,0.68)",
-        }}
+        }`}
+        style={{ color: publicProfile.display_name_color || "#ffffff" }}
       >
         {publicProfile.display_name}
       </h1>
 
+      <p
+        className="mt-1 text-sm font-medium"
+        style={{ color: publicProfile.username_color || "#00d084" }}
+      >
+        @{publicProfile.username}
+      </p>
+
       {publicProfile.bio && (
         <p
-          className={`mt-6 max-w-md whitespace-pre-wrap text-center leading-relaxed ${
+          className={`mt-4 whitespace-pre-wrap text-center ${
             publicProfile.bio_size || "text-base"
           }`}
-          style={{
-            color: publicProfile.bio_color || "rgba(255,255,255,0.82)",
-            textShadow: "0 3px 20px rgba(0,0,0,0.68)",
-          }}
+          style={{ color: publicProfile.bio_color || "rgba(255,255,255,0.7)" }}
         >
           {publicProfile.bio}
         </p>
@@ -522,7 +498,7 @@ className="relative z-20 mb-8 text-3xl font-black tracking-tight text-white/60 t
         publicSocialLinks.length > 0 && (
           <SocialIcons
             links={publicSocialLinks}
-            className="mt-7 justify-center"
+            className="mt-6 justify-center"
           />
         )}
     </div>
@@ -650,76 +626,63 @@ src={publicProfile.banner_image_url || publicProfile.avatar_url || ""}
   </div>
 )}
 
-{/* SHAPE PRO — ritratto in forma organica, senza pannello */}
+{/* SHAPE PRO */}
 {selectedLayout === "shape" && (
-  <div className="relative -mt-8 w-full px-6 pb-10 pt-8 text-center">
-    <div className="relative mx-auto flex max-w-xl flex-col items-center">
-      <div className="relative h-52 w-72 sm:h-60 sm:w-80">
-        <div className="pointer-events-none absolute -left-12 top-6 h-40 w-40 rounded-full bg-[#00d084]/20 blur-3xl" />
-        <div className="pointer-events-none absolute -right-10 bottom-0 h-40 w-40 rounded-full bg-[#40e0d0]/20 blur-3xl" />
+  <div className="relative -mx-2 w-[calc(100%+1rem)] px-5 py-8 text-center">
+    <div className="pointer-events-none absolute -left-16 -top-16 h-44 w-44 rounded-full bg-[#00d084]/20 blur-3xl" />
+    <div className="pointer-events-none absolute -bottom-20 -right-16 h-48 w-48 rounded-full bg-[#40e0d0]/20 blur-3xl" />
 
-        <div className="absolute inset-0 translate-x-3 translate-y-3 bg-[#00d084]/30 [border-radius:52%_48%_42%_58%/45%_55%_45%_55%] blur-[1px]" />
-
-        {publicProfile.avatar_url ? (
-          <img
-            src={publicProfile.avatar_url}
-            alt={publicProfile.display_name}
-            draggable={false}
-            className="absolute inset-0 h-full w-full select-none object-cover"
-            style={{
-              objectPosition: `${publicProfile.avatar_position_x ?? 50}% 38%`,
-              pointerEvents: "none",
-              userSelect: "none",
-              WebkitMaskImage:
-                "radial-gradient(ellipse 78% 92% at 50% 48%, black 45%, transparent 82%)",
-              maskImage:
-                "radial-gradient(ellipse 78% 92% at 50% 48%, black 45%, transparent 82%)",
-              borderRadius: "52% 48% 42% 58% / 45% 55% 45% 55%",
-            }}
-          />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#00d084]/80 text-7xl font-black text-[#07100d] [border-radius:52%_48%_42%_58%/45%_55%_45%_55%]">
-            {publicProfile.display_name
-              ? publicProfile.display_name.charAt(0).toUpperCase()
-              : "B"}
+    <div className="relative z-10">
+      {publicProfile.avatar_url ? (
+        <div className="mx-auto h-24 w-32 overflow-hidden bg-gradient-to-br from-[#00d084] via-[#40e0d0] to-[#056963] p-1 [border-radius:42%_58%_55%_45%/45%_42%_58%_55%]">
+          <div className="h-full w-full overflow-hidden bg-[#0c0d12] [border-radius:42%_58%_55%_45%/45%_42%_58%_55%]">
+            <img
+  src={publicProfile.avatar_url}
+  alt={publicProfile.display_name}
+  className="h-full w-full object-cover"
+  style={{
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    objectPosition: `${publicProfile.avatar_position_x ?? 50}% 50%`,
+    transform: `scale(${
+      1.45 * ((publicProfile.avatar_width ?? 120) / 120)
+    })`,
+    transformOrigin: "center center",
+  }}
+/>
           </div>
-        )}
-
-        <div className="pointer-events-none absolute -left-2 bottom-8 h-8 w-8 rounded-full border border-white/40 bg-white/15 backdrop-blur" />
-        <div className="pointer-events-none absolute right-0 top-7 h-5 w-5 rounded-full bg-[#5cf0bd] shadow-[0_0_22px_#00d084]" />
-      </div>
+        </div>
+      ) : (
+        <div className="mx-auto flex h-28 w-36 items-center justify-center bg-[#00d084] text-4xl font-black text-[#07100d] [border-radius:42%_58%_55%_45%/45%_42%_58%_55%]">
+          {publicProfile.display_name
+            ? publicProfile.display_name.charAt(0).toUpperCase()
+            : "B"}
+        </div>
+      )}
 
       <h1
-        className={`mt-7 max-w-xl text-balance font-black leading-[0.86] tracking-[-0.07em] ${
+        className={`mt-5 text-center font-black ${
           publicProfile.display_name_size || "text-4xl"
-        } sm:text-6xl`}
-        style={{
-          color: publicProfile.display_name_color || "#ffffff",
-          textShadow: "0 8px 34px rgba(0,0,0,0.58)",
-        }}
+        }`}
+        style={{ color: publicProfile.display_name_color || "#ffffff" }}
       >
         {publicProfile.display_name}
       </h1>
 
       <p
-        className="mt-3 text-[10px] font-black uppercase tracking-[0.3em]"
-        style={{
-          color: publicProfile.username_color || "#00d084",
-          textShadow: "0 2px 16px rgba(0,0,0,0.65)",
-        }}
+        className="mt-1 text-sm font-medium"
+        style={{ color: publicProfile.username_color || "#00d084" }}
       >
         @{publicProfile.username}
       </p>
 
       {publicProfile.bio && (
         <p
-          className={`mt-5 max-w-md whitespace-pre-wrap text-center leading-relaxed ${
+          className={`mt-4 whitespace-pre-wrap text-center ${
             publicProfile.bio_size || "text-base"
           }`}
-          style={{
-            color: publicProfile.bio_color || "rgba(255,255,255,0.78)",
-            textShadow: "0 3px 20px rgba(0,0,0,0.55)",
-          }}
+          style={{ color: publicProfile.bio_color || "rgba(255,255,255,0.7)" }}
         >
           {publicProfile.bio}
         </p>
@@ -729,7 +692,7 @@ src={publicProfile.banner_image_url || publicProfile.avatar_url || ""}
         publicSocialLinks.length > 0 && (
           <SocialIcons
             links={publicSocialLinks}
-            className="mt-7 justify-center"
+            className="mt-6 justify-center"
           />
         )}
     </div>
@@ -743,6 +706,8 @@ src={publicProfile.banner_image_url || publicProfile.avatar_url || ""}
   <TargetedLinks
     links={linksToShow}
     buttonStyle={publicProfile.button_style ?? "solid"}
+     globalButtonBgColor={publicProfile.global_button_bg_color ?? ""}
+  globalButtonTextColor={publicProfile.global_button_text_color ?? ""}
   />
 )}
 

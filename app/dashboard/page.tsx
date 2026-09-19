@@ -55,6 +55,8 @@ avatar_position_y: number | null;
   banner_image_url: string | null;
   bg_video_url: string | null; 
   button_style: string;
+  global_button_bg_color: string | null;
+global_button_text_color: string | null;
   social_position: "below_profile" | "footer" | null;
   display_name_color: string | null;
   username_color: string | null;
@@ -1913,6 +1915,8 @@ const [gradientAngle, setGradientAngle] = useState("145deg");
 const [uploadingBanner, setUploadingBanner] = useState(false);
   const [bgVideoUrl, setBgVideoUrl] = useState<string | null>(null);
   const [buttonStyle, setButtonStyle] = useState("solid");
+  const [globalButtonBgColor, setGlobalButtonBgColor] = useState("");
+const [globalButtonTextColor, setGlobalButtonTextColor] = useState("");
   const [previewMode, setPreviewMode] = useState<"mobile" | "desktop">("mobile");
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
 
@@ -2104,7 +2108,7 @@ const [lockedFeature, setLockedFeature] = useState("Sfondi video");
     const { data: profile, error: profileError } = await supabase
   .from("profiles")
   .select(
-    "id, username, display_name, bio, avatar_url, avatar_width, avatar_height, avatar_position_x, avatar_position_y, avatar_background_color, avatar_border_enabled, bg_color, bg_image_url, banner_image_url, bg_video_url, button_style, social_position, display_name_color, username_color, bio_color, display_name_size, display_name_align, bio_size, plan, video_opacity, subscription_status, subscription_end_date, profile_layout"
+    "id, username, display_name, bio, avatar_url, avatar_width, avatar_height, avatar_position_x, avatar_position_y, avatar_background_color, avatar_border_enabled, bg_color, bg_image_url, banner_image_url, bg_video_url, button_style, social_position, display_name_color, username_color, bio_color, display_name_size, display_name_align, bio_size, plan, video_opacity, subscription_status, subscription_end_date, profile_layout, global_button_bg_color, global_button_text_color"
   )
   .eq("id", user.id)
   .maybeSingle();
@@ -2168,6 +2172,8 @@ setAvatarBorderEnabled(
   setBannerImageUrl(savedProfile.banner_image_url ?? "");
   setBgVideoUrl(savedProfile.bg_video_url ?? null);
   setButtonStyle(savedProfile.button_style ?? "solid");
+  setGlobalButtonBgColor(savedProfile.global_button_bg_color ?? "");
+setGlobalButtonTextColor(savedProfile.global_button_text_color ?? "");
   setBioSize(savedProfile.bio_size ?? "text-base");
 
   // Nuovi campi profilo
@@ -3183,6 +3189,8 @@ avatar_border_enabled: avatarBorderEnabled,
         banner_image_url: cleanBannerImageUrl,
         bg_video_url: cleanBgVideoUrl, // ← aggiungi questa riga
         button_style: cleanButtonStyle,
+        global_button_bg_color: globalButtonBgColor || null,
+global_button_text_color: globalButtonTextColor || null,
         profile_layout: cleanProfileLayout,
         video_opacity: videoOpacity,
         bio_size: cleanBioSize,
@@ -3198,7 +3206,7 @@ avatar_border_enabled: avatarBorderEnabled,
       }
     )
     .select(
-      "username, display_name, bio, avatar_url, avatar_width, avatar_position_x, bg_color, bg_image_url, banner_image_url, bg_video_url, button_style, profile_layout, bio_size, social_position, display_name_color, username_color, bio_color, display_name_size, video_opacity"
+      "username, display_name, bio, avatar_url, avatar_width, avatar_position_x, bg_color, bg_image_url, banner_image_url, bg_video_url, button_style, profile_layout, bio_size, social_position, display_name_color, username_color, bio_color, display_name_size, video_opacity, global_button_bg_color, global_button_text_color"
     )
     .single();
 
@@ -5383,6 +5391,8 @@ avatarBorderEnabled={avatarBorderEnabled}
                   bgVideoUrl={bgVideoUrl}
                   videoOpacity={videoOpacity}
                   buttonStyle={(buttonStyle ?? "solid") as "solid" | "outline" | "glass"}
+                  globalButtonBgColor={globalButtonBgColor}
+globalButtonTextColor={globalButtonTextColor}
                   profileLayout={profileLayout}
                   displayNameColor={displayNameColor ?? "#ffffff"}
                   usernameColor={usernameColor ?? "#00d084"}
@@ -5588,7 +5598,7 @@ avatarBorderEnabled={avatarBorderEnabled}
         icon: "▭",
         title: "Pulsanti",
         value: buttonStyle === "glass" ? "Trasparenti" : buttonStyle === "outline" ? "Outline" : "Pieni",
-        description: "Forma e presenza dei tuoi link.",
+        description: "Forma e stile dei tuoi link.",
       },
       {
         id: "profile" as const,
@@ -6715,6 +6725,151 @@ avatarBorderEnabled={avatarBorderEnabled}
       })}
     </div>
 
+    <div className="mt-6 space-y-6">
+  {/* SFONDO DEL PULSANTE (GLOBALE) */}
+  <div className="rounded-2xl border border-white/10 bg-[#17181e] p-4">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <p className="text-sm font-bold text-white">Sfondo del pulsante</p>
+        <p className="mt-1 text-xs text-white/45">
+          Sfondo di default per tutti i pulsanti. I link singoli possono comunque avere il proprio sfondo.
+        </p>
+      </div>
+
+      {globalButtonBgColor && (
+        <button
+          type="button"
+          onClick={() => setGlobalButtonBgColor("")}
+          className="rounded-lg border border-white/15 px-3 py-2 text-xs font-bold text-white/65 transition hover:border-red-400 hover:text-red-300"
+        >
+          Ripristina
+        </button>
+      )}
+    </div>
+
+    <input
+      type="text"
+      value={globalButtonBgColor}
+      onChange={(event) => setGlobalButtonBgColor(event.target.value)}
+      placeholder="#00d084 oppure linear-gradient(135deg, #7c3aed, #ec4899)"
+      className="mt-4 w-full rounded-xl border border-white/20 bg-[#0c0d12] px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:border-[#00d084]"
+    />
+
+    <div className="mt-3 flex flex-wrap items-center gap-3">
+      <input
+        type="color"
+        value={
+          globalButtonBgColor?.startsWith("#") &&
+          !globalButtonBgColor.includes("(")
+            ? globalButtonBgColor
+            : "#00d084"
+        }
+        onChange={(event) => setGlobalButtonBgColor(event.target.value)}
+        className="h-10 w-14 cursor-pointer rounded-lg border border-white/15 bg-[#0c0d12] p-0"
+      />
+
+      <span className="text-xs text-white/45">
+        Scegli un colore oppure scrivi un gradiente CSS.
+      </span>
+    </div>
+
+    <div
+      className="mt-4 rounded-xl border border-white/10 px-4 py-3 text-center text-sm font-black text-[#07100d]"
+      style={{
+        background: globalButtonBgColor || "#00d084",
+      }}
+    >
+      Anteprima del link
+    </div>
+  </div>
+
+  {/* COLORE DEL TESTO (GLOBALE) */}
+  <div className="rounded-2xl border border-white/10 bg-[#17181e] p-4">
+    <div className="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <p className="text-sm font-bold text-white">Colore del testo</p>
+        <p className="mt-1 text-xs text-white/45">
+          Colore di default del testo per tutti i pulsanti.
+        </p>
+      </div>
+
+      {globalButtonTextColor && (
+        <button
+          type="button"
+          onClick={() => setGlobalButtonTextColor("")}
+          className="rounded-lg border border-white/15 px-3 py-2 text-xs font-bold text-white/65 transition hover:border-red-400 hover:text-red-300"
+        >
+          Ripristina
+        </button>
+      )}
+    </div>
+
+    <div className="mt-4 grid grid-cols-4 gap-2 sm:grid-cols-6">
+      {[
+        { label: "Bianco", value: "#ffffff" },
+        { label: "Nero", value: "#07100d" },
+        { label: "Smeraldo", value: "#00d084" },
+        { label: "Oro", value: "#facc15" },
+        { label: "Rosa", value: "#f9a8d4" },
+        { label: "Viola", value: "#c4b5fd" },
+      ].map((preset) => (
+        <button
+          key={preset.value}
+          type="button"
+          onClick={() => setGlobalButtonTextColor(preset.value)}
+          title={preset.label}
+          className={`flex h-10 items-center justify-center rounded-xl border transition ${
+            globalButtonTextColor.toLowerCase() === preset.value
+              ? "border-[#00d084] ring-2 ring-[#00d084]/25"
+              : "border-white/10 hover:border-white/35"
+          }`}
+          style={{ backgroundColor: preset.value }}
+        >
+          <span
+            className="text-[10px] font-black"
+            style={{
+              color: preset.value === "#07100d" ? "#ffffff" : "#07100d",
+            }}
+          >
+            A
+          </span>
+        </button>
+      ))}
+    </div>
+
+    <div className="mt-4 flex items-center gap-3">
+      <input
+        type="color"
+        value={
+          globalButtonTextColor?.startsWith("#") &&
+          globalButtonTextColor.length === 7
+            ? globalButtonTextColor
+            : "#ffffff"
+        }
+        onChange={(event) => setGlobalButtonTextColor(event.target.value)}
+        className="h-11 w-14 cursor-pointer rounded-xl border border-white/15 bg-[#0c0d12] p-0"
+      />
+
+      <input
+        type="text"
+        value={globalButtonTextColor}
+        onChange={(event) => setGlobalButtonTextColor(event.target.value)}
+        placeholder="#ffffff"
+        className="min-w-0 flex-1 rounded-xl border border-white/15 bg-[#0c0d12] px-4 py-3 text-sm font-bold text-white outline-none placeholder:text-white/25 focus:border-[#00d084]"
+      />
+    </div>
+
+    <div
+      className="mt-4 rounded-xl border border-white/10 bg-[#0c0d12] px-4 py-3 text-center text-sm font-black"
+      style={{
+        color: globalButtonTextColor || "#ffffff",
+      }}
+    >
+      Il tuo testo qui
+    </div>
+  </div>
+</div>
+
     <div className="mt-4 rounded-2xl border border-white/10 bg-[#0c0d12] p-4">
       <div className="flex items-start gap-3">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#00d084]/25 bg-[#00d084]/10 text-sm text-[#5cf0bd]">
@@ -6725,9 +6880,7 @@ avatarBorderEnabled={avatarBorderEnabled}
           <p className="text-sm font-bold text-white">Suggerimento</p>
 
           <p className="mt-1 text-xs leading-5 text-white/50">
-            Usa Pieno per evidenziare un&apos;azione importante, Outline per
-            uno stile pulito e Glass quando vuoi far risaltare sfondo o
-            immagine.
+            Puoi personalizzare singolarmente i link dalla sezione "Link", modificali invece in blo cco qui sopra.
           </p>
         </div>
       </div>
@@ -6755,6 +6908,49 @@ avatarBorderEnabled={avatarBorderEnabled}
   </p>
 
   <div className="mt-4 rounded-2xl border border-white/10 bg-[#0c0d12] p-4">
+<div className="mb-5 rounded-2xl border border-white/10 bg-[#17181e] p-3">
+  <p className="text-xs font-black uppercase tracking-[0.14em] text-[#00d084]">
+    Anteprima layout
+  </p>
+
+  <p className="mt-1 text-xs text-white/45">
+    Trascina l&apos;immagine o usa lo slider: la preview si aggiorna in tempo reale.
+  </p>
+
+  <div className="mt-3 overflow-hidden rounded-2xl border border-white/10 bg-[#0c0d12]">
+    <ProfilePreview
+      displayName={displayName ?? ""}
+      username={(username ?? "").trim().toLowerCase()}
+      bio={bio ?? ""}
+      avatarUrl={avatarUrl ?? ""}
+      bannerImageUrl={bannerImageUrl}
+      avatarWidth={profileImageWidth}
+      avatarPositionX={profileImagePositionX}
+      avatarBackgroundColor={avatarBackgroundColor}
+      avatarBorderEnabled={avatarBorderEnabled}
+      bgColor={bgColor ?? ""}
+      bgImageUrl={bgImageUrl ?? ""}
+      bgVideoUrl={bgVideoUrl}
+      videoOpacity={videoOpacity}
+      buttonStyle={
+        (buttonStyle ?? "solid") as "solid" | "outline" | "glass"
+      }
+      globalButtonBgColor={globalButtonBgColor}
+  globalButtonTextColor={globalButtonTextColor}
+      profileLayout={profileLayout}
+      displayNameColor={displayNameColor ?? "#ffffff"}
+      usernameColor={usernameColor ?? "#00d084"}
+      bioColor={bioColor ?? "rgba(255,255,255,0.7)"}
+      displayNameSize={displayNameSize ?? "text-4xl"}
+      bioSize={bioSize ?? "text-base"}
+      links={[]}
+      products={[]}
+      socialLinks={[]}
+      socialPosition="footer"
+    />
+  </div>
+</div>
+
     <div className="flex flex-wrap items-start gap-5">
       <div
   ref={avatarDragRef}
@@ -6843,7 +7039,7 @@ avatarBorderEnabled={avatarBorderEnabled}
 
       <input
   type="range"
-  min={80}
+  min={50}
   max={260}
   step={1}
   value={profileImageWidth ?? 120}
@@ -8853,6 +9049,8 @@ avatarBorderEnabled={avatarBorderEnabled}
     bgVideoUrl={bgVideoUrl}
     videoOpacity={videoOpacity}
     buttonStyle={(buttonStyle ?? "solid") as "solid" | "outline" | "glass"}
+    globalButtonBgColor={globalButtonBgColor}
+globalButtonTextColor={globalButtonTextColor}
     profileLayout={profileLayout}
     displayNameColor={displayNameColor ?? "#ffffff"}
     usernameColor={usernameColor ?? "#00d084"}
@@ -8915,6 +9113,8 @@ avatarBorderEnabled={avatarBorderEnabled}
           bgImageUrl={bgImageUrl}
           bgVideoUrl={bgVideoUrl ?? null}
           buttonStyle={buttonStyle as "solid" | "outline" | "glass"}
+          globalButtonBgColor={globalButtonBgColor}
+    globalButtonTextColor={globalButtonTextColor}
           profileLayout={profileLayout}
                   displayNameColor={displayNameColor}
         usernameColor={usernameColor}
@@ -9454,6 +9654,8 @@ avatarBorderEnabled={avatarBorderEnabled}
   buttonStyle={
     (buttonStyle ?? "solid") as "solid" | "outline" | "glass"
   }
+   globalButtonBgColor={globalButtonBgColor}
+  globalButtonTextColor={globalButtonTextColor}
   profileLayout={profileLayout}
   displayNameColor={displayNameColor ?? "#ffffff"}
   usernameColor={usernameColor ?? "#00d084"}

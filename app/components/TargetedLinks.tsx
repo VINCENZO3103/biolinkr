@@ -32,19 +32,37 @@ type VisitorContext = {
 type TargetedLinksProps = {
   links: BioLink[];
   buttonStyle: string;
+  globalButtonBgColor?: string;
+  globalButtonTextColor?: string;
 };
 
-function getButtonClasses(buttonStyle: string) {
-  switch (buttonStyle) {
-    case "outline":
-      return "rounded-xl border border-white/20 bg-transparent font-black text-white transition hover:border-[#00d084] hover:bg-white/5";
+function getButtonClasses(
+  buttonStyle: string,
+  globalButtonBgColor?: string,
+  globalButtonTextColor?: string
+) {
+  const bg = globalButtonBgColor || undefined;
+  const color = globalButtonTextColor || undefined;
 
-    case "glass":
-      return "rounded-xl border border-white/10 bg-white/5 font-black text-white backdrop-blur transition hover:bg-white/10";
+  const base: Record<string, string> = {
+    outline:
+      "rounded-xl border border-white/20 bg-transparent font-black text-white transition hover:border-[#00d084] hover:bg-white/5",
+    glass:
+      "rounded-xl border border-white/10 bg-white/5 font-black text-white backdrop-blur transition hover:bg-white/10",
+    solid:
+      "rounded-xl font-black transition",
+  };
 
-    default:
-      return "rounded-xl bg-[#00d084] font-black text-[#07100d] transition hover:bg-[#19e49b]";
-  }
+  const solidDefaultBg = "#00d084";
+  const solidDefaultText = "#07100d";
+
+  const solidStyle = `background: ${bg || solidDefaultBg}; color: ${color || solidDefaultText};`;
+
+  return {
+    outline: base.outline,
+    glass: base.glass,
+    solid: `${base.solid} ${solidStyle}`,
+  }[buttonStyle] || base.solid;
 }
 
 function normalize(values: string[] | null | undefined) {
@@ -76,6 +94,8 @@ function linkMatchesVisitor(link: BioLink, visitor: VisitorContext) {
 export default function TargetedLinks({
   links,
   buttonStyle,
+  globalButtonBgColor = "",
+  globalButtonTextColor = "",
 }: TargetedLinksProps) {
   const [visitor, setVisitor] = useState<VisitorContext | null>(null);
 
@@ -109,8 +129,6 @@ export default function TargetedLinks({
   }, []);
 
   const visibleLinks = useMemo(() => {
-    // Finché il contesto è in caricamento, non filtrare:
-    // evita che i link spariscano brevemente.
     if (!visitor) {
       return links;
     }
@@ -130,7 +148,11 @@ export default function TargetedLinks({
 
       <div className="space-y-3">
         {visibleLinks.map((link) => {
-          const baseClasses = getButtonClasses(buttonStyle);
+          const baseClasses = getButtonClasses(
+            buttonStyle,
+            globalButtonBgColor || undefined,
+            globalButtonTextColor || undefined
+          );
 
           return link.display_type === "image" && link.image_url ? (
             <TrackedPublicLink
@@ -160,11 +182,16 @@ export default function TargetedLinks({
               href={link.url}
               hoverEffect={link.hover_effect || "none"}
               className={`group relative flex w-full items-center justify-center rounded-xl px-4 py-4 font-black transition ${baseClasses}`}
-              style={
-                link.background_color
-                  ? { background: link.background_color }
-                  : undefined
-              }
+              style={{
+                background:
+                  link.background_color ||
+                  globalButtonBgColor ||
+                  undefined,
+                color:
+                  link.text_color ||
+                  globalButtonTextColor ||
+                  undefined,
+              }}
             >
               {link.icon_url && (
                 <span
@@ -174,6 +201,7 @@ export default function TargetedLinks({
                     height: "36px",
                     backgroundColor:
                       link.background_color ||
+                      globalButtonBgColor ||
                       "rgba(255,255,255,0.15)",
                   }}
                 >
@@ -193,11 +221,12 @@ export default function TargetedLinks({
 
               <span
                 className="relative z-10 px-12 text-center"
-                style={
-                  link.text_color
-                    ? { color: link.text_color }
-                    : undefined
-                }
+                style={{
+                  color:
+                    link.text_color ||
+                    globalButtonTextColor ||
+                    undefined,
+                }}
               >
                 {link.title}
               </span>
