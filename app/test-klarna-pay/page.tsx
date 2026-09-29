@@ -2,23 +2,30 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "../supabase";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
-export default function TestKlarnaPage() {
+export default function TestKlarnaPayPage() {
   const router = useRouter();
-  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
+  const [status, setStatus] = useState<"idle" | "loading" | "error" | "success">("idle");
   const [debug, setDebug] = useState<string>("");
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("success") === "1") {
+      setStatus("success");
+      setDebug("Checkout completato! Controlla su Stripe Dashboard → Payments.");
+      return;
+    }
+    if (params.get("canceled") === "1") {
+      setStatus("error");
+      setDebug("Checkout annullato.");
+      return;
+    }
+
     async function startCheckout() {
       try {
         setStatus("loading");
-        setDebug("1. Recupero sessione Supabase...");
+        setDebug("1. Recupero utente...");
 
         const {
           data: { user },
@@ -26,7 +33,7 @@ export default function TestKlarnaPage() {
         } = await supabase.auth.getUser();
 
         if (userError || !user) {
-          setDebug(`2. Errore auth: ${userError?.message || "utente non loggato"}`);
+          setDebug(`Errore auth: ${userError?.message || "utente non loggato"}`);
           setStatus("error");
           return;
         }
@@ -41,18 +48,16 @@ export default function TestKlarnaPage() {
           .single();
 
         if (profileError || !profile) {
-          setDebug(`3. Profilo non trovato: ${profileError?.message || "nessun dato"}`);
+          setDebug(`Profilo non trovato: ${profileError?.message || "nessun dato"}`);
           setStatus("error");
           return;
         }
 
         const profileId = profile.id;
-        setDebug(`3. Profilo: ${profileId}. Preparo chiamata API...`);
+        setDebug(`3. Profilo: ${profileId}. Avvio checkout...`);
 
-        // METTI QUI IL PRICE ID DEL PRODOTTO DA 999,99 €
-        const priceId = "price_1UKy6uV05Ak3S5GrMyDoyMz8";
-
-        setDebug(`4. Chiamo API con: priceId=${priceId}, userId=${userId}, profileId=${profileId}`);
+        // METTI QUI IL PRICE ID DA 999,99 €
+        const priceId = "price_1UKzdEV05Ak3S5Gr6jBeYZkC";
 
         const res = await fetch("/api/stripe/create-checkout-session", {
           method: "POST",
@@ -67,7 +72,7 @@ export default function TestKlarnaPage() {
         const text = await res.text();
 
         if (!res.ok) {
-          setDebug(`5. Errore API: ${res.status} – ${text}`);
+          setDebug(`Errore API: ${res.status} – ${text}`);
           setStatus("error");
           return;
         }
@@ -76,14 +81,19 @@ export default function TestKlarnaPage() {
         try {
           json = JSON.parse(text);
         } catch {
-          setDebug(`5. Risposta non JSON: ${text}`);
+          setDebug(`Risposta non JSON: ${text}`);
           setStatus("error");
           return;
         }
 
-        setDebug(`5. Risposta OK: ${JSON.stringify(json)}. Reindirizzo...`);
+        if (!json.url) {
+          setDebug(`Nessun URL nella risposta: ${JSON.stringify(json)}`);
+          setStatus("error");
+          return;
+        }
 
-        window.location.href = json.url;
+        setDebug(`Reindirizzo a Stripe...`);
+        window.location.href = json.url + (json.url.includes("?") ? "&" : "?") + "test_klarna=1";
       } catch (e: any) {
         setDebug(`Errore generico: ${e?.message || String(e)}`);
         setStatus("error");
@@ -99,7 +109,7 @@ export default function TestKlarnaPage() {
         {status === "loading" && (
           <>
             <h1 className="text-2xl font-bold mb-2">
-              Apertura checkout Klarna…
+              Apertura checkout Klarna (999,99 €)…
             </h1>
             <p className="text-sm text-gray-400 mb-4">{debug}</p>
             <p className="text-xs text-gray-500">
@@ -108,17 +118,24 @@ export default function TestKlarnaPage() {
           </>
         )}
 
+        {status === "success" && (
+          <>
+            <h1 className="text-2xl font-bold mb-2 text-[#00d084]">
+              Checkout completato!
+            </h1>
+            <p className="text-sm text-gray-400 mb-4">{debug}</p>
+            <p className="text-xs text-gray-500">
+              Verifica su Stripe Dashboard → Payments che il metodo sia “klarna”.
+            </p>
+          </>
+        )}
+
         {status === "error" && (
           <>
             <h1 className="text-2xl font-bold mb-2 text-red-400">
-              Errore nell’avvio del checkout
+              Errore / annullamento
             </h1>
             <p className="text-sm text-gray-400 mb-2">{debug}</p>
-            <ul className="text-xs text-gray-500 text-left bg-[#17181e] border border-[#2a2d35] rounded-lg p-3 mb-4">
-              <li>• Assicurati di essere loggato su BioLinkr.</li>
-              <li>• Controlla di aver inserito il priceId corretto.</li>
-              <li>• Verifica che esista il profilo per il tuo user ID.</li>
-            </ul>
             <button
               onClick={() => router.push("/dashboard")}
               className="px-4 py-2 bg-[#17181e] border border-[#2a2d35] rounded-lg text-sm"
