@@ -93,7 +93,7 @@ export default function TestKlarnaPayPage() {
         }
 
         setDebug(`Reindirizzo a Stripe...`);
-        window.location.href = json.url + (json.url.includes("?") ? "&" : "?") + "test_klarna=1";
+window.location.href = json.url;
       } catch (e: any) {
         setDebug(`Errore generico: ${e?.message || String(e)}`);
         setStatus("error");
