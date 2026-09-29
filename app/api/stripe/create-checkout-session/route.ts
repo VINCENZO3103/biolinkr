@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('id, username')
+      .select('id, username, stripe_customer_id')
       .eq('id', userId)
       .single();
 
@@ -42,8 +42,24 @@ export async function POST(request: NextRequest) {
 
     console.log('Creating Stripe session...');
 
+    // Controlla se ha già usato una prova
+    let hasUsedTrial = false;
+
+    if (profile.stripe_customer_id) {
+      const subscriptions = await stripe.subscriptions.list({
+        customer: profile.stripe_customer_id,
+        limit: 100,
+      });
+
+      hasUsedTrial = subscriptions.data.some(
+        (sub) =>
+          sub.trial_end != null ||
+          sub.metadata?.trial_used === 'true'
+      );
+    }
+
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
+      payment_method_types: ['card', 'klarna'], // <-- AGGIUNTO "klarna" qui
       line_items: [
         {
           price: priceId,
@@ -51,14 +67,20 @@ export async function POST(request: NextRequest) {
         },
       ],
       mode: 'subscription',
-      subscription_data: {
-        trial_period_days: 7,
-        metadata: {
-          userId,
-          profileId,
-        },
-      },
-success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/upgrade/success?session_id={CHECKOUT_SESSION_ID}`,
+      // Applica trial solo se NON ha mai usato una prova
+      ...(hasUsedTrial
+        ? {}
+        : {
+            subscription_data: {
+              trial_period_days: 7,
+              metadata: {
+                userId,
+                profileId,
+                trial_used: 'true',
+              },
+            },
+          }),
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/upgrade/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard?canceled=true`,
       customer_email: undefined,
       metadata: {
