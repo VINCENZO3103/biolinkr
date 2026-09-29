@@ -18,24 +18,22 @@ export default function TestKlarnaPage() {
     async function startCheckout() {
       try {
         setStatus("loading");
-        setDebug("Recupero sessione Supabase...");
+        setDebug("1. Recupero sessione Supabase...");
 
-        // 1. Recupera l'utente loggato
         const {
           data: { user },
           error: userError,
         } = await supabase.auth.getUser();
 
         if (userError || !user) {
-          setDebug("Utente non loggato o errore auth.");
+          setDebug(`2. Errore auth: ${userError?.message || "utente non loggato"}`);
           setStatus("error");
           return;
         }
 
         const userId = user.id;
-        setDebug(`Utente: ${userId}. Recupero profilo...`);
+        setDebug(`2. Utente: ${userId}. Recupero profilo...`);
 
-        // 2. Recupera il profilo
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
           .select("id, username")
@@ -43,40 +41,49 @@ export default function TestKlarnaPage() {
           .single();
 
         if (profileError || !profile) {
-          setDebug(`Profilo non trovato: ${profileError?.message || "nessun dato"}`);
+          setDebug(`3. Profilo non trovato: ${profileError?.message || "nessun dato"}`);
           setStatus("error");
           return;
         }
 
         const profileId = profile.id;
-        setDebug(`Profilo: ${profileId}. Creo checkout...`);
+        setDebug(`3. Profilo: ${profileId}. Preparo chiamata API...`);
 
-        // 3. METTI QUI IL PRICE ID DEL PRODOTTO DA 999,99 €
-        const priceId = "price_XXXXXX";
+        // METTI QUI IL PRICE ID DEL PRODOTTO DA 999,99 €
+        const priceId = "price_1UKy6uV05Ak3S5GrMyDoyMz8";
 
-        // 4. Chiama la tua API di checkout
+        setDebug(`4. Chiamo API con: priceId=${priceId}, userId=${userId}, profileId=${profileId}`);
+
         const res = await fetch("/api/stripe/create-checkout-session", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    priceId,
-    userId,
-    profileId,
-  }),
-});
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            priceId,
+            userId,
+            profileId,
+          }),
+        });
+
+        const text = await res.text();
 
         if (!res.ok) {
-          const errText = await res.text();
-          setDebug(`Errore API: ${res.status} – ${errText}`);
+          setDebug(`5. Errore API: ${res.status} – ${text}`);
           setStatus("error");
           return;
         }
 
-        const { url } = await res.json();
-        setDebug("Reindirizzamento a Stripe Checkout...");
+        let json: any;
+        try {
+          json = JSON.parse(text);
+        } catch {
+          setDebug(`5. Risposta non JSON: ${text}`);
+          setStatus("error");
+          return;
+        }
 
-        // 5. Redirect a Stripe
-        window.location.href = url;
+        setDebug(`5. Risposta OK: ${JSON.stringify(json)}. Reindirizzo...`);
+
+        window.location.href = json.url;
       } catch (e: any) {
         setDebug(`Errore generico: ${e?.message || String(e)}`);
         setStatus("error");
