@@ -55,15 +55,15 @@ export default function TestKlarnaPage() {
         const priceId = "price_XXXXXX";
 
         // 4. Chiama la tua API di checkout
-        const res = await fetch("/api/checkout", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            priceId,
-            userId,
-            profileId,
-          }),
-        });
+        const res = await fetch("/api/stripe/create-checkout-session", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    priceId,
+    userId,
+    profileId,
+  }),
+});
 
         if (!res.ok) {
           const errText = await res.text();
