@@ -93,11 +93,18 @@ export async function POST(request: NextRequest) {
     console.log('Stripe session created:', session.id);
 
     return NextResponse.json({ url: session.url, successPath: '/dashboard/upgrade/success' });
-  } catch (error) {
-    console.error('Checkout session error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
+  } catch (error: any) {
+  console.error('Checkout session error:', error);
+  return NextResponse.json(
+    {
+      error: 'Internal server error',
+      details: {
+        message: error?.message || String(error),
+        type: error?.type,
+        code: error?.code,
+      },
+    },
+    { status: 500 }
+  );
+}
 }
