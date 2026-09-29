@@ -58,6 +58,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Prezzo da 999,99 €: NESSUN TRIAL
+    const PRICE_999 = "price_1UKzdEV05Ak3S5Gr6jBeYZkC";
+    const isPrice999 = priceId === PRICE_999;
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card', 'klarna'], // <-- AGGIUNTO "klarna" qui
       line_items: [
@@ -67,8 +71,10 @@ export async function POST(request: NextRequest) {
         },
       ],
       mode: 'subscription',
-      // Applica trial solo se NON ha mai usato una prova
-      ...(hasUsedTrial
+      // Applica trial solo se:
+      // - NON è il prezzo da 999,99 €
+      // - E l'utente non ha già usato una prova
+      ...(isPrice999 || hasUsedTrial
         ? {}
         : {
             subscription_data: {
@@ -94,17 +100,17 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ url: session.url, successPath: '/dashboard/upgrade/success' });
   } catch (error: any) {
-  console.error('Checkout session error:', error);
-  return NextResponse.json(
-    {
-      error: 'Internal server error',
-      details: {
-        message: error?.message || String(error),
-        type: error?.type,
-        code: error?.code,
+    console.error('Checkout session error:', error);
+    return NextResponse.json(
+      {
+        error: 'Internal server error',
+        details: {
+          message: error?.message || String(error),
+          type: error?.type,
+          code: error?.code,
+        },
       },
-    },
-    { status: 500 }
-  );
-}
+      { status: 500 }
+    );
+  }
 }
