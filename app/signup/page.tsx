@@ -18,12 +18,33 @@ export default function SignupPage() {
 
     const cleanEmail = email.trim();
     const cleanUsername = username.trim().toLowerCase();
-    const cleanDisplayName = displayName.trim() || cleanUsername;
+    const cleanDisplayName = displayName.trim();
+
+    // Validazioni
+    if (!cleanEmail) {
+      setMessage("Inserisci la tua email.");
+      return;
+    }
+
+    if (!cleanUsername) {
+      setMessage("Lo username è obbligatorio.");
+      return;
+    }
 
     if (!/^[a-z0-9_]{3,30}$/.test(cleanUsername)) {
       setMessage(
         "Username: 3-30 caratteri, solo lettere minuscole, numeri e _"
       );
+      return;
+    }
+
+    if (!cleanDisplayName) {
+      setMessage("Il nome visualizzato è obbligatorio.");
+      return;
+    }
+
+    if (!password) {
+      setMessage("Inserisci una password.");
       return;
     }
 
@@ -112,15 +133,15 @@ export default function SignupPage() {
           <ul className="mt-10 space-y-4 text-white/70">
             <li className="flex items-start gap-3 opacity-0 animate-[fadeInUp_0.8s_0.35s_ease-out_forwards]">
               <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#00d084]" />
-Conosci il tuo pubblico. Analizza click, sorgenti, paesi e dispositivi e scopri quali contenuti funzionano meglio.
+              Conosci il tuo pubblico. Analizza click, sorgenti, paesi e dispositivi e scopri quali contenuti funzionano meglio.
             </li>
             <li className="flex items-start gap-3 opacity-0 animate-[fadeInUp_0.8s_0.4s_ease-out_forwards]">
               <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#00d084]" />
-Testa e targetizza. Confronta diverse varianti e mostra i link più rilevanti in base a paese, dispositivo e sorgente.
+              Testa e targetizza. Confronta diverse varianti e mostra i link più rilevanti in base a paese, dispositivo e sorgente.
             </li>
             <li className="flex items-start gap-3 opacity-0 animate-[fadeInUp_0.8s_0.45s_ease-out_forwards]">
               <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-[#00d084]" />
-Trasforma il traffico in risultati. Ottimizza la tua bio per ottenere più click, follower, clienti e opportunità.Trasforma il traffico in risultati. Ottimizza la tua bio per ottenere più click, follower, clienti e opportunità.
+              Trasforma il traffico in risultati. Ottimizza la tua bio per ottenere più click, follower, clienti e opportunità.
             </li>
           </ul>
         </div>
@@ -169,12 +190,13 @@ Trasforma il traffico in risultati. Ottimizza la tua bio per ottenere più click
               </label>
 
               <label className="block text-base font-bold">
-                Nome visualizzato (opzionale)
+                Nome visualizzato
                 <input
                   type="text"
                   value={displayName}
                   onChange={(event) => setDisplayName(event.target.value)}
                   placeholder="Il tuo nome o brand"
+                  required
                   className="mt-2 w-full rounded-2xl border border-white/20 bg-[#0c0d12] px-5 py-4 text-base text-white outline-none transition-all duration-200 placeholder:text-white/25 focus:border-[#00d084] focus:shadow-[0_0_0_3px_rgba(0,208,132,0.15)]"
                 />
               </label>
@@ -188,7 +210,7 @@ Trasforma il traffico in risultati. Ottimizza la tua bio per ottenere più click
                   placeholder="Almeno 6 caratteri"
                   minLength={6}
                   required
-                  className="mt-2 w-full rounded-2xl border border-white/20 bg-[#0c0d12] px-5 py-4 text-base text-white outline-none transition-all duration-200 placeholder:text-white/25 focus:border-[#00d084] focus:shadow-[0_0_0_3px_rgba(0,208,132,0.15)]"
+                  className="mt-2 w-full rounded-2xl border border-white/20 bg-[#0c0d12] px-5 py-4 text-base text-white outline-none transition-all duration-200 placeholder:text-white/25 focus:border-[#00d084] focus:shadow-[0_0_0_0_3px_rgba(0,208,132,0.15)]"
                 />
               </label>
 

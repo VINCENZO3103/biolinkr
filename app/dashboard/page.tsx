@@ -3154,6 +3154,12 @@ async function handleSaveProfile(event: FormEvent<HTMLFormElement>) {
   const cleanBioColor = bioColor.trim() || "rgba(255,255,255,0.7)";
   const cleanDisplayNameSize = displayNameSize || "text-4xl";
 
+  // VALIDAZIONE OBBLIGATORIETÀ
+  if (!cleanUsername) {
+    setMessage("Inserisci uno username.");
+    return;
+  }
+
   if (!/^[a-z0-9_]{3,30}$/.test(cleanUsername)) {
     setMessage(
       "Lo username deve avere da 3 a 30 caratteri e usare solo lettere minuscole, numeri o underscore (_)."
